@@ -1,0 +1,8 @@
+#pragma once
+
+#define PROJECT_NAME "CppShot"
+#define PROJECT_VERSION "0.6.0"
+#define PROJECT_VERSION_MAJOR 0
+#define PROJECT_VERSION_MINOR 6
+#define PROJECT_VERSION_PATCH 0
+#define PROJECT_VERSION_TWEAK 
