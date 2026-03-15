@@ -19,3 +19,5 @@ BetterCppShot-*.exe
 # Windows junk
 Thumbs.db
 Desktop.ini
+
+dist/
