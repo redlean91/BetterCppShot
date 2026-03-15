@@ -1,8 +1,8 @@
 #include <windows.h>
 #include "resources.h"
 
-CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "@CMAKE_SOURCE_DIR@/res/application.manifest"
-IDI_APPICON   ICON "@CMAKE_SOURCE_DIR@/res/cppshot32.ico"
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "application.manifest"
+IDI_APPICON   ICON "cppshot32.ico"
 
 // Main Menu
 IDR_MAINMENU MENU
@@ -37,8 +37,8 @@ BEGIN
       VALUE "FileDescription", "BetterCppShot"
       VALUE "FileVersion", "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@.0"
       VALUE "InternalName", "cppshot"
-      VALUE "LegalCopyright", "(C) 2021-2024 Cvolton, Redlean"
-      VALUE "OriginalFilename", "cppshot.exe"
+      VALUE "LegalCopyright", "(C) 2021-2026 Cvolton, Redlean"
+      VALUE "OriginalFilename", "bettercppshot.exe"
       VALUE "ProductName", "BetterCppShot"
       VALUE "ProductVersion", "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@.0"
     END

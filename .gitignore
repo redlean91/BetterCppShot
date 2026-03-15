@@ -1,0 +1,21 @@
+# Object files
+*.o
+
+# Resource object files
+*.res.o
+
+# Generated resource file
+res/resources.rc
+
+# Built executables
+BetterCppShot-*.exe
+
+# Optional: generic Windows build outputs
+*.exe
+
+# VSCode
+.vscode/
+
+# Windows junk
+Thumbs.db
+Desktop.ini
