@@ -3,6 +3,78 @@
 
 #include <iostream>
 #include <tchar.h>
+#include <string>
+#include <windows.h>
+
+
+std::wstring CppShot::HotkeyToString(UINT modifiers, UINT vk) {
+    std::wstring result = L"";
+
+    if (modifiers & MOD_CONTROL) result += L"CTRL+";
+    if (modifiers & MOD_ALT)     result += L"ALT+";
+    if (modifiers & MOD_SHIFT)   result += L"SHIFT+";
+    if (modifiers & MOD_WIN)     result += L"WIN+";
+
+    if (vk >= 0x41 && vk <= 0x5A) { result += (wchar_t)vk; return result; }
+    if (vk >= 0x30 && vk <= 0x39) { result += (wchar_t)vk; return result; }
+
+    if (vk >= VK_F1 && vk <= VK_F24) {
+        result += L"F" + std::to_wstring(vk - VK_F1 + 1);
+        return result;
+    }
+
+    if (vk >= VK_NUMPAD0 && vk <= VK_NUMPAD9) {
+        result += L"NUM" + std::to_wstring(vk - VK_NUMPAD0);
+        return result;
+    }
+
+    switch (vk) {
+        case VK_SPACE:      result += L"SPACE";     break;
+        case VK_RETURN:     result += L"ENTER";     break;
+        case VK_ESCAPE:     result += L"ESC";       break;
+        case VK_TAB:        result += L"TAB";       break;
+        case VK_BACK:       result += L"BACKSPACE"; break;
+        case VK_DELETE:     result += L"DELETE";    break;
+        case VK_INSERT:     result += L"INSERT";    break;
+        case VK_HOME:       result += L"HOME";      break;
+        case VK_END:        result += L"END";       break;
+        case VK_PRIOR:      result += L"PAGE UP";   break;
+        case VK_NEXT:       result += L"PAGE DOWN"; break;
+        case VK_LEFT:       result += L"LEFT";      break;
+        case VK_RIGHT:      result += L"RIGHT";     break;
+        case VK_UP:         result += L"UP";        break;
+        case VK_DOWN:       result += L"DOWN";      break;
+        case VK_PRINT:      result += L"PRINT";     break;
+        case VK_SNAPSHOT:   result += L"PRTSC";     break;
+        case VK_PAUSE:      result += L"PAUSE";     break;
+        case VK_CAPITAL:    result += L"CAPS";      break;
+        case VK_NUMLOCK:    result += L"NUMLOCK";   break;
+        case VK_SCROLL:     result += L"SCROLL";    break;
+        case VK_MULTIPLY:   result += L"NUM*";      break;
+        case VK_ADD:        result += L"NUM+";      break;
+        case VK_SUBTRACT:   result += L"NUM-";      break;
+        case VK_DIVIDE:     result += L"NUM/";      break;
+        case VK_DECIMAL:    result += L"NUM.";      break;
+        case VK_OEM_1:      result += L";";         break;
+        case VK_OEM_2:      result += L"/";         break;
+        case VK_OEM_3:      result += L"`";         break;
+        case VK_OEM_4:      result += L"[";         break;
+        case VK_OEM_5:      result += L"\\";        break;
+        case VK_OEM_6:      result += L"]";         break;
+        case VK_OEM_7:      result += L"'";         break;
+        case VK_OEM_PLUS:   result += L"=";         break;
+        case VK_OEM_MINUS:  result += L"-";         break;
+        case VK_OEM_COMMA:  result += L",";         break;
+        case VK_OEM_PERIOD: result += L".";         break;
+        default:
+            wchar_t buf[8];
+            swprintf(buf, 8, L"0x%02X", vk);
+            result += buf;
+            break;
+    }
+
+    return result;
+}
 
 std::wstring CppShot::getRegistry(LPCTSTR pszValueName, LPCTSTR defaultValue)
 {
@@ -180,4 +252,50 @@ unsigned int CppShot::getDPIForWindow(HWND window) {
     int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
     ReleaseDC(window, hdc);
     return dpi;
+}
+
+void CppShot::saveHotkey(LPCTSTR name, UINT modifiers, UINT vk) {
+    HKEY hKey = NULL;
+    LPCTSTR pszSubkey = _T("SOFTWARE\\CppShot");
+    DWORD dwDisposition;
+
+    if (RegCreateKeyEx(HKEY_CURRENT_USER, pszSubkey, 0, NULL,
+        REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hKey, &dwDisposition) != ERROR_SUCCESS)
+        return;
+
+    std::wstring modKey = std::wstring(name) + L"_mod";
+    std::wstring vkKey  = std::wstring(name) + L"_vk";
+
+    DWORD mod = (DWORD)modifiers;
+    DWORD key = (DWORD)vk;
+
+    RegSetValueEx(hKey, modKey.c_str(), 0, REG_DWORD, (const BYTE*)&mod, sizeof(DWORD));
+    RegSetValueEx(hKey, vkKey.c_str(),  0, REG_DWORD, (const BYTE*)&key, sizeof(DWORD));
+
+    RegCloseKey(hKey);
+}
+
+std::pair<UINT, UINT> CppShot::loadHotkey(LPCTSTR name, UINT defaultModifiers, UINT defaultVk) {
+    HKEY hKey = NULL;
+    LPCTSTR pszSubkey = _T("SOFTWARE\\CppShot");
+
+    if (RegCreateKeyEx(HKEY_CURRENT_USER, pszSubkey, 0, NULL,
+        REG_OPTION_NON_VOLATILE, KEY_READ, NULL, &hKey, NULL) != ERROR_SUCCESS)
+        return { defaultModifiers, defaultVk };
+
+    std::wstring modKey = std::wstring(name) + L"_mod";
+    std::wstring vkKey  = std::wstring(name) + L"_vk";
+
+    DWORD mod = 0, key = 0;
+    DWORD size = sizeof(DWORD);
+
+    bool modOk = RegQueryValueEx(hKey, modKey.c_str(), NULL, NULL, (LPBYTE)&mod, &size) == ERROR_SUCCESS;
+    bool vkOk  = RegQueryValueEx(hKey, vkKey.c_str(),  NULL, NULL, (LPBYTE)&key, &size) == ERROR_SUCCESS;
+
+    RegCloseKey(hKey);
+
+    if (!modOk || !vkOk)
+        return { defaultModifiers, defaultVk };
+
+    return { (UINT)mod, (UINT)key };
 }

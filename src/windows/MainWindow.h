@@ -5,6 +5,7 @@
 class MainWindow : public Window {
     void onOpenExplorer();
 	void onOpenExplorer_change();
+	void onChangeKeybinds();
 public:
 	MainWindow();
 };

@@ -14,7 +14,7 @@
 #include "windows/MainWindow.h"
 #include "windows/BackdropWindow.h"
 
-#define ERROR_TITLE "BetterCppShot Error"
+#define ERROR_TITLE L"BetterCppShot Error"
 
 TCHAR blackBackdropClassName[] = L"BlackBackdropWindow";
 TCHAR whiteBackdropClassName[] = L"WhiteBackdropWindow";
@@ -104,7 +104,7 @@ void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow& whiteWi
     whiteWindow.hide();
 
     if (!shots.first.isCaptured() || !shots.second.isCaptured()) {
-        MessageBoxA(NULL, "Screenshot is empty, aborting capture.", ERROR_TITLE, MB_OK | MB_ICONSTOP);
+        MessageBoxA(NULL, "Screenshot is empty, aborting capture.", "BetterCppShot Error", MB_OK | MB_ICONSTOP);
         return;
     }
 
@@ -123,7 +123,7 @@ void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow& whiteWi
             transparentInactiveImage.save(base + L"_b2.png");
         }
     } catch (std::runtime_error& e) {
-        MessageBoxA(NULL, "An error has occured while capturing the screenshot.", ERROR_TITLE, MB_OK | MB_ICONSTOP);
+        MessageBoxA(NULL, "An error has occured while capturing the screenshot.", "BetterCppShot Error", MB_OK | MB_ICONSTOP);
         return;
     }
 }
@@ -139,7 +139,7 @@ static LONG WINAPI exceptionHandler(LPEXCEPTION_POINTERS info) {
     wsprintfA(msg, "An unhandled exception has occured.\n\nException code: 0x%lx\nException address: 0x%p",
         info->ExceptionRecord->ExceptionCode,
         info->ExceptionRecord->ExceptionAddress);
-    MessageBoxA(NULL, msg, ERROR_TITLE, MB_OK | MB_ICONSTOP);
+    MessageBoxA(NULL, msg, "BetterCppShot Error", MB_OK | MB_ICONSTOP);
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
@@ -149,9 +149,10 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
                    int nCmdShow)
 {
     /*
-    AllocConsole(); // Uncomment for debug logs
+    AllocConsole();
     freopen("CONOUT$", "w", stdout);
-    setvbuf(stdout, NULL, _IONBF, 0);
+    freopen("CONOUT$", "w", stderr);
+    freopen("CONIN$",  "r", stdin);
     */
 
     SetUnhandledExceptionFilter(exceptionHandler);
@@ -160,11 +161,27 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
         MainWindow window;
         window.show(nCmdShow);
 
-        if (!RegisterHotKey(NULL, 1, 0x2, 0x42))
-            MessageBoxA(NULL, "Unable to register CTRL+B shortcut.", ERROR_TITLE, 0x10);
+        // actually getting the keybinds
+        std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey(L"Screenshot",             MOD_CONTROL, 0x42);
+        std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey(L"ScreenshotRegion",       MOD_ALT,     0x53);
 
-        if (!RegisterHotKey(NULL, 2, 0x6, 0x42))
-            MessageBoxA(NULL, "Unable to register CTRL+SHIFT+B shortcut.", ERROR_TITLE, 0x10);
+        UINT mod1 = hotkey1.first,   vk1 = hotkey1.second;
+        UINT mod2 = hotkey2.first,   vk2 = hotkey2.second;
+
+        std::wstring hotkey_b1 = CppShot::HotkeyToString(mod1, vk1);
+        std::wstring hotkey_b1_b2 = CppShot::HotkeyToString(mod2, vk2);
+
+        std::wstring text_keybind1 = L"Unable to register keybind: ";
+        text_keybind1 += hotkey_b1;
+
+        std::wstring text_keybind2 = L"Unable to register keybind: ";
+        text_keybind2 += hotkey_b1_b2;
+
+        if (!RegisterHotKey(NULL, 1, mod1, vk1))
+            MessageBoxW(NULL, text_keybind1.c_str(), ERROR_TITLE, 0x10);
+
+        if (!RegisterHotKey(NULL, 2, mod2, vk2))
+            MessageBoxW(NULL, text_keybind2.c_str(), ERROR_TITLE, 0x10);
 
         BackdropWindow whiteWindow(RGB(255, 255, 255), whiteBackdropClassName);
         BackdropWindow blackWindow(RGB(0, 0, 0), blackBackdropClassName);
@@ -172,7 +189,7 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
         Gdiplus::GdiplusStartupInput gpStartupInput;
         ULONG_PTR gpToken;
         if (Gdiplus::GdiplusStartup(&gpToken, &gpStartupInput, NULL) != Gdiplus::Ok) {
-            MessageBoxA(NULL, "Failed to initialize GDI+.\nPlease install the GDI+ redistributable.", ERROR_TITLE, MB_OK | MB_ICONSTOP);
+            MessageBoxA(NULL, "Failed to initialize GDI+.\nPlease install the GDI+ redistributable.", "BetterCppShot Error", MB_OK | MB_ICONSTOP);
             return 1;
         }
 

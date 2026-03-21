@@ -10,6 +10,9 @@ namespace CppShot {
     std::wstring getRegistry(LPCTSTR pszValueName, LPCTSTR defaultValue);
     std::wstring getSaveDirectory();
     std::wstring changeRegistry(LPCTSTR pszValueName, const std::wstring& newValue);
+    std::wstring HotkeyToString(UINT modifiers, UINT vk);
+    void saveHotkey(LPCTSTR name, UINT modifiers, UINT vk);
+    std::pair<UINT, UINT> loadHotkey(LPCTSTR name, UINT defaultModifiers, UINT defaultVk);
     const wchar_t* statusString(const Gdiplus::Status status);
     RECT getDesktopRect();
     RECT getCaptureRect(HWND window);
