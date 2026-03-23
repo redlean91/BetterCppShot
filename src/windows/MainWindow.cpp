@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "../ui/Button.h"
 #include "version.h"
+#include "../resources.h"
 #include <shellapi.h>
 #include "../Utils.h"
 #include <windows.h>
@@ -15,15 +16,15 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
         .setSize(200, 30)
         .setTitle("Open Screenshots Folder");
     this->addButton()
-        .setCallback([this]() { onOpenExplorer_change(); })
+        .setCallback([this]() { onOpenSettings(); })
         .setPosition(10, 50)
         .setSize(200, 30)
-        .setTitle("Change Screenshots Folder");
+        .setTitle("Settings");
     this->addButton()
         .setCallback([this]() { onChangeKeybinds(); })
         .setPosition(10, 90)
         .setSize(200, 30)
-        .setTitle("Change Keybinds");
+        .setTitle("About");
 
     // Keybinds
     this->addLabel("Active keybinds:", 57, 130, 200, 20);
@@ -69,6 +70,128 @@ void MainWindow::onOpenExplorer_change() {
         imalloc->Free(pidl);
         imalloc->Release();
     }
+}
+
+// settings stuff
+
+static bool g_settingsClosed = false;
+
+static LRESULT CALLBACK SettingsWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_CREATE:
+            {
+                CREATESTRUCTA* cs = (CREATESTRUCTA*)lParam;
+                MainWindow* mainWnd = (MainWindow*)cs->lpCreateParams;
+
+                SetWindowLongPtrA(hWnd, GWLP_USERDATA, (LONG_PTR)mainWnd);
+                return 0;
+            }
+        case WM_CLOSE:
+            DestroyWindow(hWnd);
+            return 0;
+
+        case WM_DESTROY:
+            g_settingsClosed = true; // IMPORTANT
+            return 0;
+
+        case WM_COMMAND:
+            {
+                int id = LOWORD(wParam);
+
+                MainWindow* mainWnd = (MainWindow*)GetWindowLongPtrA(hWnd, GWLP_USERDATA);
+
+                if (id == 202) { // Close
+                    DestroyWindow(hWnd);
+                } else if (id == 203) {
+                    mainWnd->onOpenExplorer_change();
+                } else if (id == 204) {
+                    mainWnd->onChangeKeybinds();
+                }
+
+                return 0;
+            }
+    }
+    return DefWindowProcA(hWnd, msg, wParam, lParam);
+}
+
+void MainWindow::onOpenSettings() {
+    const char* className = "SettingsWnd";
+
+    HINSTANCE instance = GetModuleHandle(NULL);
+
+    HICON hIcon = (HICON) LoadImage(instance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED);
+
+    WNDCLASSA wc = {};
+    wc.lpfnWndProc   = SettingsWndProc;
+    wc.hIcon = hIcon;
+    wc.hInstance     = GetModuleHandle(NULL);
+    wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+    wc.lpszClassName = className;
+    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+
+    RegisterClassA(&wc);
+
+    HWND hDlg = CreateWindowExA(
+        WS_EX_DLGMODALFRAME,
+        className,
+        "Settings",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        230, 270,
+        this->getWindow(),
+        NULL,
+        GetModuleHandle(NULL),
+        this
+    );
+
+    CreateWindowA(
+        "BUTTON", "Change Screenshot Folder",
+        WS_CHILD | WS_VISIBLE,
+        10, 10, 200, 30,
+        hDlg,
+        (HMENU)203, // ID
+        GetModuleHandle(NULL),
+        NULL
+    );
+
+    CreateWindowA(
+        "BUTTON", "Change Keybinds",
+        WS_CHILD | WS_VISIBLE,
+        10, 50, 200, 30,
+        hDlg,
+        (HMENU)204, // ID
+        GetModuleHandle(NULL),
+        NULL
+    );
+
+    CreateWindowA(
+        "BUTTON", "Close",
+        WS_CHILD | WS_VISIBLE,
+        75, 200, 70, 30,
+        hDlg,
+        (HMENU)202, // ID
+        GetModuleHandle(NULL),
+        NULL
+    );
+
+    ShowWindow(hDlg, SW_SHOW);
+    UpdateWindow(hDlg);
+
+    EnableWindow(this->getWindow(), FALSE);
+
+    g_settingsClosed = false;
+    MSG msg = {};
+
+    while (!g_settingsClosed && GetMessageA(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+
+        if (!IsWindow(hDlg))
+            break;
+    }
+
+    EnableWindow(this->getWindow(), TRUE);
+    SetActiveWindow(this->getWindow());
 }
 
 // ── Hotkey dialog helpers ──────────────────────────────────────────────
