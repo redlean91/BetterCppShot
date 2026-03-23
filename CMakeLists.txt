@@ -23,10 +23,13 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/src/version.h
     @ONLY)
 
+    
 file(GLOB_RECURSE SOURCES
     src/*.cpp
     res/*.rc
 )
+
+set(CMAKE_RC_FLAGS "--include-dir=${CMAKE_SOURCE_DIR}/res")
 
 add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/res/resources.rc)
 

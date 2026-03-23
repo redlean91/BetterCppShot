@@ -1,6 +1,6 @@
 #include "MainWindow.h"
 #include "../ui/Button.h"
-#include "../version.h"
+#include "version.h"
 #include <shellapi.h>
 #include "../Utils.h"
 #include <windows.h>
