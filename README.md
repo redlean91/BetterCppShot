@@ -3,7 +3,7 @@ Originally from [Cvolton](https://github.com/Cvolton/CppShot), made """better"""
 
 All credits go to Cvolton for the original code, i'm just simply doing this as a chance to learn a bit of C++.
 
-A transparent screnshot utility written in C++. Tested for compatibility on Windows XP onwards. (working to make it work on 98/2000)
+A transparent screnshot utility written in C++. Tested for compatibility on Windows XP onwards. (Not planning to support Windows 9x for now)
 
 ## Building notes
 The build environment uses CMake.
