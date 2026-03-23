@@ -14,42 +14,42 @@
 #include "windows/MainWindow.h"
 #include "windows/BackdropWindow.h"
 
-#define ERROR_TITLE L"BetterCppShot Error"
+#define ERROR_TITLE "BetterCppShot Error"
 
-TCHAR blackBackdropClassName[] = L"BlackBackdropWindow";
-TCHAR whiteBackdropClassName[] = L"WhiteBackdropWindow";
+const char blackBackdropClassName[] = "BlackBackdropWindow";
+const char whiteBackdropClassName[] = "WhiteBackdropWindow";
 
-inline bool FileExists(const std::wstring& name) {
-    return GetFileAttributesW(name.c_str()) != INVALID_FILE_ATTRIBUTES && GetLastError() != ERROR_FILE_NOT_FOUND;
+inline bool FileExists(const std::string& name) {
+    return GetFileAttributesA(name.c_str()) != INVALID_FILE_ATTRIBUTES && GetLastError() != ERROR_FILE_NOT_FOUND;
 }
 
-void RemoveIllegalChars(std::wstring& str) {
-    std::wstring::iterator it;
-    std::wstring illegalChars = L"\\/:?\"<>|*";
+void RemoveIllegalChars(std::string& str) {
+    std::string::iterator it;
+    std::string illegalChars = "\\/:?\"<>|*";
     for (it = str.begin(); it < str.end(); ++it) {
-        bool found = illegalChars.find(*it) != std::wstring::npos;
+        bool found = illegalChars.find(*it) != std::string::npos;
         if (found) *it = ' ';
     }
 }
 
-std::wstring GetSafeFilenameBase(std::wstring windowTitle) {
+std::string GetSafeFilenameBase(std::string windowTitle) {
     RemoveIllegalChars(windowTitle);
 
-    std::wstring path = CppShot::getSaveDirectory();
+    std::string path = CppShot::getSaveDirectory();
 
     // CreateDirectory with wide string
-    CreateDirectoryW(path.c_str(), NULL);
+    CreateDirectoryA(path.c_str(), NULL);
 
-    std::wstringstream pathbuild;
-    std::wstring fileNameBase;
+    std::stringstream pathbuild;
+    std::string fileNameBase;
 
     unsigned int i = 0;
     do {
-        pathbuild.str(L"");
-        pathbuild << path << L"\\" << windowTitle << L"_" << i;
+        pathbuild.str("");
+        pathbuild << path << "\\" << windowTitle << "_" << i;
         fileNameBase = pathbuild.str();
         i++;
-    } while (FileExists(fileNameBase + L"_b1.png") || FileExists(fileNameBase + L"_b2.png"));
+    } while (FileExists(fileNameBase + "_b1.png") || FileExists(fileNameBase + "_b2.png"));
 
     return fileNameBase;
 }
@@ -110,17 +110,21 @@ void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow& whiteWi
 
     wchar_t h[2048];
     GetWindowTextW(foregroundWindow, h, 2048);
-    std::wstring windowTextStr(h);
+
+    // Convert wchar_t* to std::string
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, h, -1, NULL, 0, NULL, NULL);
+    std::string windowTextStr(size_needed - 1, 0); // -1 to remove null terminator
+    WideCharToMultiByte(CP_UTF8, 0, h, -1, &windowTextStr[0], size_needed, NULL, NULL);
 
     auto base = GetSafeFilenameBase(windowTextStr);
 
     try {
         CompositeScreenshot transparentImage(shots.first, shots.second);
-        transparentImage.save(base + L"_b1.png");
+        transparentImage.save(base + "_b1.png");
 
         if (creShots.first.isCaptured() && creShots.second.isCaptured()) {
             CompositeScreenshot transparentInactiveImage(creShots.first, creShots.second, transparentImage.getCrop());
-            transparentInactiveImage.save(base + L"_b2.png");
+            transparentInactiveImage.save(base + "_b2.png"); // <- narrow literal
         }
     } catch (std::runtime_error& e) {
         MessageBoxA(NULL, "An error has occured while capturing the screenshot.", "BetterCppShot Error", MB_OK | MB_ICONSTOP);
@@ -162,26 +166,26 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
         window.show(nCmdShow);
 
         // actually getting the keybinds
-        std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey(L"Screenshot",             MOD_CONTROL, 0x42);
-        std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey(L"ScreenshotRegion",       MOD_ALT,     0x53);
+        std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",             MOD_CONTROL, 0x42);
+        std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",       MOD_ALT,     0x53);
 
         UINT mod1 = hotkey1.first,   vk1 = hotkey1.second;
         UINT mod2 = hotkey2.first,   vk2 = hotkey2.second;
 
-        std::wstring hotkey_b1 = CppShot::HotkeyToString(mod1, vk1);
-        std::wstring hotkey_b1_b2 = CppShot::HotkeyToString(mod2, vk2);
+        std::string hotkey_b1 = CppShot::HotkeyToString(mod1, vk1);
+        std::string hotkey_b1_b2 = CppShot::HotkeyToString(mod2, vk2);
 
-        std::wstring text_keybind1 = L"Unable to register keybind: ";
+        std::string text_keybind1 = "Unable to register keybind: ";
         text_keybind1 += hotkey_b1;
 
-        std::wstring text_keybind2 = L"Unable to register keybind: ";
+        std::string text_keybind2 = "Unable to register keybind: ";
         text_keybind2 += hotkey_b1_b2;
 
         if (!RegisterHotKey(NULL, 1, mod1, vk1))
-            MessageBoxW(NULL, text_keybind1.c_str(), ERROR_TITLE, 0x10);
+            MessageBoxA(NULL, text_keybind1.c_str(), ERROR_TITLE, 0x10);
 
         if (!RegisterHotKey(NULL, 2, mod2, vk2))
-            MessageBoxW(NULL, text_keybind2.c_str(), ERROR_TITLE, 0x10);
+            MessageBoxA(NULL, text_keybind2.c_str(), ERROR_TITLE, 0x10);
 
         BackdropWindow whiteWindow(RGB(255, 255, 255), whiteBackdropClassName);
         BackdropWindow blackWindow(RGB(0, 0, 0), blackBackdropClassName);

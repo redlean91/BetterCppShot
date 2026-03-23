@@ -7,9 +7,9 @@ Application& Application::get() {
 }
 
 Application::Application() {
-    m_saveDirectory = CppShot::getRegistry(L"Path", L"C:\\test\\");
+    m_saveDirectory = CppShot::getRegistry("Path", "C:\\test\\");
 }
 
-std::wstring Application::getSaveDirectory() const {
+std::string Application::getSaveDirectory() const {
     return m_saveDirectory;
 }

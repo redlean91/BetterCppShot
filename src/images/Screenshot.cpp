@@ -35,12 +35,17 @@ RECT Screenshot::createRect() {
     return m_captureRect = CppShot::getCaptureRect(m_window);
 }
 
-void Screenshot::save(const std::wstring& path) {
+void Screenshot::save(const std::string& path) {
 	// This is supposed to be gathered from the OS but the encoder CLSID has never changed, so this is safe enough
 	// The old version of cppshot had a bug that made it use the hardcoded one anyway
     CLSID pngEncoder = {0x557cf406, 0x1a04, 0x11d3, {0x9a, 0x73, 0x00, 0x00, 0xf8, 0x1e, 0xf3, 0x2e} } ;
     
-    m_image->Save(path.c_str(), &pngEncoder, NULL);
+    // Convert std::string (UTF-8 or ANSI) to std::wstring
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, NULL, 0);
+    std::wstring wpath(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], size_needed);
+
+    m_image->Save(wpath.c_str(), &pngEncoder, NULL);
 }
 
 bool Screenshot::isCaptured() {

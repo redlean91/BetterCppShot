@@ -7,12 +7,6 @@
 # Generated resource file
 res/resources.rc
 
-# Built executables
-BetterCppShot-*.exe
-
-# Optional: generic Windows build outputs
-*.exe
-
 # VSCode
 .vscode/
 
@@ -20,4 +14,5 @@ BetterCppShot-*.exe
 Thumbs.db
 Desktop.ini
 
-dist/
+# build from shitty stuff
+build/

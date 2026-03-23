@@ -4,21 +4,23 @@
 #include <gdiplus.h>
 #include <string>
 
-class Screenshot {
+class Screenshot
+{
 protected:
 	RECT m_captureRect;
-	Gdiplus::Bitmap* m_image = nullptr;
+	Gdiplus::Bitmap *m_image = nullptr;
 	HWND m_window = nullptr;
 
 	RECT createRect();
 	void encoderClsid();
+
 public:
 	Screenshot();
 	Screenshot(HWND window);
 	~Screenshot();
 	void capture(HWND window);
-	void save(const std::wstring& path);
+	void save(const std::string &path);
 	bool isCaptured();
-	Gdiplus::Bitmap* getBitmap() const;
+	Gdiplus::Bitmap *getBitmap() const;
 	RECT getCaptureRect() const;
 };

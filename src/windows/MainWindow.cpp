@@ -1,86 +1,77 @@
 #include "MainWindow.h"
 #include "../ui/Button.h"
 #include "../version.h"
-#include <tchar.h>
 #include <shellapi.h>
 #include "../Utils.h"
 #include <windows.h>
 #include <shlobj.h>
 #include <string>
 
-MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), L"MainCreWindow", L"BCppShot", 0, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX) {
+MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", "BCppShot", 0, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX) {
     setSize(230, 270);
     this->addButton()
         .setCallback([this]() { onOpenExplorer(); })
         .setPosition(10, 10)
         .setSize(200, 30)
-        .setTitle(L"Open Screenshots Folder");
+        .setTitle("Open Screenshots Folder");
     this->addButton()
         .setCallback([this]() { onOpenExplorer_change(); })
         .setPosition(10, 50)
         .setSize(200, 30)
-        .setTitle(L"Change Screenshots Folder");
+        .setTitle("Change Screenshots Folder");
     this->addButton()
         .setCallback([this]() { onChangeKeybinds(); })
         .setPosition(10, 90)
         .setSize(200, 30)
-        .setTitle(L"Change Keybinds");
+        .setTitle("Change Keybinds");
 
     // Keybinds
-    this->addLabel(L"Active keybinds:", 57, 130, 200, 20);
+    this->addLabel("Active keybinds:", 57, 130, 200, 20);
 
-    // actually getting the keybinds
-    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey(L"Screenshot",       MOD_CONTROL, 0x42);
-    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey(L"ScreenshotRegion", MOD_ALT,     0x53);
+    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",       MOD_CONTROL, 0x42);
+    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion", MOD_ALT,     0x53);
 
     UINT mod1 = hotkey1.first, vk1 = hotkey1.second;
     UINT mod2 = hotkey2.first, vk2 = hotkey2.second;
 
-    std::wstring hotkey_b1      = CppShot::HotkeyToString(mod1, vk1);
-    std::wstring hotkey_b1_text = L"_b1:             ";
-    hotkey_b1_text += hotkey_b1;
+    std::string hotkey_b1      = CppShot::HotkeyToString(mod1, vk1);
+    std::string hotkey_b1_text = "_b1:             " + hotkey_b1;
     this->addLabel(hotkey_b1_text.c_str(), 10, 150, 200, 20);
 
-    std::wstring hotkey_b1_b2      = CppShot::HotkeyToString(mod2, vk2);
-    std::wstring hotkey_b1_b2_text = L"_b1 + _b2:   ";
-    hotkey_b1_b2_text += hotkey_b1_b2;
+    std::string hotkey_b1_b2      = CppShot::HotkeyToString(mod2, vk2);
+    std::string hotkey_b1_b2_text = "_b1 + _b2:   " + hotkey_b1_b2;
     this->addLabel(hotkey_b1_b2_text.c_str(), 10, 170, 200, 20);
 
-    this->addLabel(L"BetterCppShot, by Redlean", 10, 210, 200, 20);
+    this->addLabel("BetterCppShot, by Redlean", 10, 210, 200, 20);
 }
 
 void MainWindow::onOpenExplorer() {
-    char pathA[MAX_PATH];
-    WideCharToMultiByte(CP_ACP, 0, CppShot::getSaveDirectory().c_str(), -1, pathA, MAX_PATH, NULL, NULL);
-    ShellExecuteA(NULL, "open", "explorer", pathA, NULL, SW_SHOWNORMAL);
+    std::string path = CppShot::getSaveDirectory();
+    ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOWNORMAL);
 }
 
 void MainWindow::onOpenExplorer_change() {
-    BROWSEINFOA bi;
-    ZeroMemory(&bi, sizeof(bi));
+    BROWSEINFOA bi = {};
     bi.hwndOwner = NULL;
     bi.lpszTitle = "Select a folder for screenshots:";
     bi.ulFlags   = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
 
     LPITEMIDLIST pidl = SHBrowseForFolderA(&bi);
-    if (pidl == NULL)
-        return;
+    if (!pidl) return;
 
-    char pathA[MAX_PATH];
-    if (SHGetPathFromIDListA(pidl, pathA)) {
-        wchar_t pathW[MAX_PATH];
-        MultiByteToWideChar(CP_ACP, 0, pathA, -1, pathW, MAX_PATH);
-        CppShot::changeRegistry(L"Path", pathW);
+    char path[MAX_PATH];
+    if (SHGetPathFromIDListA(pidl, path)) {
+        CppShot::changeRegistry("Path", path);
     }
 
-    IMalloc* imalloc = NULL;
+    IMalloc* imalloc = nullptr;
     if (SUCCEEDED(SHGetMalloc(&imalloc))) {
         imalloc->Free(pidl);
         imalloc->Release();
     }
 }
 
-// ── Hotkey dialog helpers ────────────────────────────────────────────────────
+// ── Hotkey dialog helpers ──────────────────────────────────────────────
 
 struct KeyCapture {
     UINT mod, vk;
@@ -104,7 +95,7 @@ static LRESULT CALLBACK HotkeySubclassProc(HWND hWnd, UINT msg, WPARAM wParam, L
         KeyCapture* cap = (KeyCapture*)data;
         cap->mod = mod;
         cap->vk  = vk;
-        SetWindowTextW(hWnd, CppShot::HotkeyToString(mod, vk).c_str());
+        SetWindowTextA(hWnd, CppShot::HotkeyToString(mod, vk).c_str());
         return 0;
     }
     return DefSubclassProc(hWnd, msg, wParam, lParam);
@@ -117,8 +108,8 @@ static LRESULT CALLBACK HotkeyDlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         case WM_COMMAND: {
             int id = LOWORD(wParam);
             if (id == 103) { // OK
-                CppShot::saveHotkey(L"Screenshot",       g_cap1.mod, g_cap1.vk);
-                CppShot::saveHotkey(L"ScreenshotRegion", g_cap2.mod, g_cap2.vk);
+                CppShot::saveHotkey("Screenshot",       g_cap1.mod, g_cap1.vk);
+                CppShot::saveHotkey("ScreenshotRegion", g_cap2.mod, g_cap2.vk);
                 DestroyWindow(hWnd);
             } else if (id == 104) { // Cancel
                 DestroyWindow(hWnd);
@@ -132,54 +123,54 @@ static LRESULT CALLBACK HotkeyDlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
             g_dlgClosed = true;
             return 0;
     }
-    return DefWindowProcW(hWnd, msg, wParam, lParam);
+    return DefWindowProcA(hWnd, msg, wParam, lParam);
 }
 
 void MainWindow::onChangeKeybinds() {
-    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey(L"Screenshot",       MOD_CONTROL, 0x42);
-    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey(L"ScreenshotRegion", MOD_ALT,     0x53);
+    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",       MOD_CONTROL, 0x42);
+    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion", MOD_ALT,     0x53);
 
     g_cap1 = { hotkey1.first, hotkey1.second, NULL };
     g_cap2 = { hotkey2.first, hotkey2.second, NULL };
 
-    WNDCLASSW wc    = {};
-    wc.lpfnWndProc  = HotkeyDlgProc;
-    wc.hInstance    = GetModuleHandle(NULL);
+    WNDCLASSA wc = {};
+    wc.lpfnWndProc   = HotkeyDlgProc;
+    wc.hInstance     = GetModuleHandle(NULL);
     wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
-    wc.lpszClassName = L"HotkeyDlg";
-    wc.hCursor      = LoadCursor(NULL, IDC_ARROW);
-    RegisterClassW(&wc);
+    wc.lpszClassName = "HotkeyDlg";
+    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+    RegisterClassA(&wc);
 
-    HWND hDlg = CreateWindowExW(
+    HWND hDlg = CreateWindowExA(
         WS_EX_DLGMODALFRAME,
-        L"HotkeyDlg", L"Change Keybinds",
+        "HotkeyDlg", "Change Keybinds",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         CW_USEDEFAULT, CW_USEDEFAULT, 310, 250,
         this->getWindow(), NULL, GetModuleHandle(NULL), NULL
     );
 
-    CreateWindowW(L"STATIC", L"_b1",        WS_CHILD | WS_VISIBLE,         10, 15, 120, 20, hDlg, NULL,       GetModuleHandle(NULL), NULL);
-    CreateWindowW(L"STATIC", L"_b1 + _b2", WS_CHILD | WS_VISIBLE,         10, 75, 120, 20, hDlg, NULL,       GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "_b1",        WS_CHILD | WS_VISIBLE, 10, 15, 120, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "_b1 + _b2", WS_CHILD | WS_VISIBLE, 10, 75, 120, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    HWND hPreview1 = CreateWindowW(L"EDIT", CppShot::HotkeyToString(g_cap1.mod, g_cap1.vk).c_str(),
+    HWND hPreview1 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap1.mod, g_cap1.vk).c_str(),
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
         10, 35, 280, 25, hDlg, (HMENU)101, GetModuleHandle(NULL), NULL);
 
-    HWND hPreview2 = CreateWindowW(L"EDIT", CppShot::HotkeyToString(g_cap2.mod, g_cap2.vk).c_str(),
+    HWND hPreview2 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap2.mod, g_cap2.vk).c_str(),
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
         10, 95, 280, 25, hDlg, (HMENU)102, GetModuleHandle(NULL), NULL);
 
     g_cap1.hPreview = hPreview1;
     g_cap2.hPreview = hPreview2;
 
-    CreateWindowW(L"STATIC", L"Click a box then press your desired key combo.", WS_CHILD | WS_VISIBLE | SS_CENTER,
+    CreateWindowA("STATIC", "Click a box then press your desired key combo.", WS_CHILD | WS_VISIBLE | SS_CENTER,
         10, 130, 280, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowW(L"STATIC", L"*A restart of the application is required.", WS_CHILD | WS_VISIBLE | SS_CENTER,
+    CreateWindowA("STATIC", "*A restart of the application is required.", WS_CHILD | WS_VISIBLE | SS_CENTER,
         10, 150, 280, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowW(L"BUTTON", L"OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 60,  175, 80, 28, hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
-    CreateWindowW(L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE,                   155, 175, 80, 28, hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 60,  175, 80, 28, hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   155, 175, 80, 28, hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
 
     SetWindowSubclass(hPreview1, HotkeySubclassProc, 1, (DWORD_PTR)&g_cap1);
     SetWindowSubclass(hPreview2, HotkeySubclassProc, 2, (DWORD_PTR)&g_cap2);
@@ -197,14 +188,14 @@ void MainWindow::onChangeKeybinds() {
 
     g_dlgClosed = false;
     MSG msg = {};
-    while (!g_dlgClosed && GetMessage(&msg, NULL, 0, 0)) {
+    while (!g_dlgClosed && GetMessageA(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        DispatchMessageA(&msg);
         if (!IsWindow(hDlg))
             break;
     }
 
     RemoveWindowSubclass(hPreview1, HotkeySubclassProc, 1);
     RemoveWindowSubclass(hPreview2, HotkeySubclassProc, 2);
-    UnregisterClassW(L"HotkeyDlg", GetModuleHandle(NULL));
+    UnregisterClassA("HotkeyDlg", GetModuleHandle(NULL));
 }

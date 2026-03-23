@@ -1,191 +1,19 @@
 #include "Utils.h"
 #include "managers/Application.h"
+#include "images/Screenshot.h"
 
 #include <iostream>
 #include <tchar.h>
 #include <string>
 #include <windows.h>
 
+namespace CppShot {
 
-std::wstring CppShot::HotkeyToString(UINT modifiers, UINT vk) {
-    std::wstring result = L"";
-
-    if (modifiers & MOD_CONTROL) result += L"CTRL+";
-    if (modifiers & MOD_ALT)     result += L"ALT+";
-    if (modifiers & MOD_SHIFT)   result += L"SHIFT+";
-    if (modifiers & MOD_WIN)     result += L"WIN+";
-
-    if (vk >= 0x41 && vk <= 0x5A) { result += (wchar_t)vk; return result; }
-    if (vk >= 0x30 && vk <= 0x39) { result += (wchar_t)vk; return result; }
-
-    if (vk >= VK_F1 && vk <= VK_F24) {
-        result += L"F" + std::to_wstring(vk - VK_F1 + 1);
-        return result;
-    }
-
-    if (vk >= VK_NUMPAD0 && vk <= VK_NUMPAD9) {
-        result += L"NUM" + std::to_wstring(vk - VK_NUMPAD0);
-        return result;
-    }
-
-    switch (vk) {
-        case VK_SPACE:      result += L"SPACE";     break;
-        case VK_RETURN:     result += L"ENTER";     break;
-        case VK_ESCAPE:     result += L"ESC";       break;
-        case VK_TAB:        result += L"TAB";       break;
-        case VK_BACK:       result += L"BACKSPACE"; break;
-        case VK_DELETE:     result += L"DELETE";    break;
-        case VK_INSERT:     result += L"INSERT";    break;
-        case VK_HOME:       result += L"HOME";      break;
-        case VK_END:        result += L"END";       break;
-        case VK_PRIOR:      result += L"PAGE UP";   break;
-        case VK_NEXT:       result += L"PAGE DOWN"; break;
-        case VK_LEFT:       result += L"LEFT";      break;
-        case VK_RIGHT:      result += L"RIGHT";     break;
-        case VK_UP:         result += L"UP";        break;
-        case VK_DOWN:       result += L"DOWN";      break;
-        case VK_PRINT:      result += L"PRINT";     break;
-        case VK_SNAPSHOT:   result += L"PRTSC";     break;
-        case VK_PAUSE:      result += L"PAUSE";     break;
-        case VK_CAPITAL:    result += L"CAPS";      break;
-        case VK_NUMLOCK:    result += L"NUMLOCK";   break;
-        case VK_SCROLL:     result += L"SCROLL";    break;
-        case VK_MULTIPLY:   result += L"NUM*";      break;
-        case VK_ADD:        result += L"NUM+";      break;
-        case VK_SUBTRACT:   result += L"NUM-";      break;
-        case VK_DIVIDE:     result += L"NUM/";      break;
-        case VK_DECIMAL:    result += L"NUM.";      break;
-        case VK_OEM_1:      result += L";";         break;
-        case VK_OEM_2:      result += L"/";         break;
-        case VK_OEM_3:      result += L"`";         break;
-        case VK_OEM_4:      result += L"[";         break;
-        case VK_OEM_5:      result += L"\\";        break;
-        case VK_OEM_6:      result += L"]";         break;
-        case VK_OEM_7:      result += L"'";         break;
-        case VK_OEM_PLUS:   result += L"=";         break;
-        case VK_OEM_MINUS:  result += L"-";         break;
-        case VK_OEM_COMMA:  result += L",";         break;
-        case VK_OEM_PERIOD: result += L".";         break;
-        default:
-            wchar_t buf[8];
-            swprintf(buf, 8, L"0x%02X", vk);
-            result += buf;
-            break;
-    }
-
-    return result;
-}
-
-std::wstring CppShot::getRegistry(LPCTSTR pszValueName, LPCTSTR defaultValue)
-{
-    HKEY hKey = NULL;
-    LPCTSTR pszSubkey = _T("SOFTWARE\\CppShot");
-
-    // Use RegCreateKeyEx so it creates the key if it doesn't exist yet
-    DWORD dwDisposition;
-    if (RegCreateKeyEx(
-            HKEY_CURRENT_USER,
-            pszSubkey,
-            0, NULL,
-            REG_OPTION_NON_VOLATILE,
-            KEY_READ,
-            NULL,
-            &hKey,
-            &dwDisposition) != ERROR_SUCCESS)
-    {
-        std::cout << "Unable to open/create registry key" << std::endl;
-        return std::wstring(defaultValue);
-    }
-
-    TCHAR szValue[1024];
-    DWORD cbValueLength = sizeof(szValue);
-
-    if (RegQueryValueEx(
-            hKey,
-            pszValueName,
-            NULL,
-            NULL,
-            reinterpret_cast<LPBYTE>(&szValue),
-            &cbValueLength) != ERROR_SUCCESS)
-    {
-        std::cout << "Unable to read registry value" << std::endl;
-        RegCloseKey(hKey);
-        return std::wstring(defaultValue);
-    }
-
-    RegCloseKey(hKey);
-    return std::wstring(szValue);
-}
-
-std::wstring CppShot::changeRegistry(LPCTSTR pszValueName, const std::wstring& newValue)
-{
-    HKEY hKey = NULL;
-    LPCTSTR pszSubkey = _T("SOFTWARE\\CppShot");
-
-    // Use RegCreateKeyEx so it creates the key if it doesn't exist yet
-    DWORD dwDisposition;
-    if (RegCreateKeyEx(
-            HKEY_CURRENT_USER,
-            pszSubkey,
-            0, NULL,
-            REG_OPTION_NON_VOLATILE,
-            KEY_SET_VALUE,
-            NULL,
-            &hKey,
-            &dwDisposition) != ERROR_SUCCESS)
-    {
-        std::cout << "Unable to open/create registry key" << std::endl;
-        return L"";
-    }
-
-    if (RegSetValueEx(
-            hKey,
-            pszValueName,
-            0,
-            REG_SZ,
-            reinterpret_cast<const BYTE*>(newValue.c_str()),
-            (newValue.length() + 1) * sizeof(wchar_t)) != ERROR_SUCCESS)
-    {
-        std::cout << "Unable to write registry value" << std::endl;
-        RegCloseKey(hKey);
-        return L"";
-    }
-
-    RegCloseKey(hKey);
-    return newValue;
-}
-
-std::wstring CppShot::getSaveDirectory() {
+std::string getSaveDirectory() {
     return Application::get().getSaveDirectory();
 }
 
-const wchar_t* CppShot::statusString(const Gdiplus::Status status) {
-    switch (status) {
-        case Gdiplus::Ok:                        return L"Ok";
-        case Gdiplus::GenericError:              return L"GenericError";
-        case Gdiplus::InvalidParameter:          return L"InvalidParameter";
-        case Gdiplus::OutOfMemory:               return L"OutOfMemory";
-        case Gdiplus::ObjectBusy:                return L"ObjectBusy";
-        case Gdiplus::InsufficientBuffer:        return L"InsufficientBuffer";
-        case Gdiplus::NotImplemented:            return L"NotImplemented";
-        case Gdiplus::Win32Error:                return L"Win32Error";
-        case Gdiplus::Aborted:                   return L"Aborted";
-        case Gdiplus::FileNotFound:              return L"FileNotFound";
-        case Gdiplus::ValueOverflow:             return L"ValueOverflow";
-        case Gdiplus::AccessDenied:              return L"AccessDenied";
-        case Gdiplus::UnknownImageFormat:        return L"UnknownImageFormat";
-        case Gdiplus::FontFamilyNotFound:        return L"FontFamilyNotFound";
-        case Gdiplus::FontStyleNotFound:         return L"FontStyleNotFound";
-        case Gdiplus::NotTrueTypeFont:           return L"NotTrueTypeFont";
-        case Gdiplus::UnsupportedGdiplusVersion: return L"UnsupportedGdiplusVersion";
-        case Gdiplus::GdiplusNotInitialized:     return L"GdiplusNotInitialized";
-        case Gdiplus::PropertyNotFound:          return L"PropertyNotFound";
-        case Gdiplus::PropertyNotSupported:      return L"PropertyNotSupported";
-        default:                                 return L"Status Type Not Found.";
-    }
-}
-
-RECT CppShot::getDesktopRect() {
+RECT getDesktopRect() {
     RECT rctDesktop;
     rctDesktop.left   = GetSystemMetrics(76);
     rctDesktop.top    = GetSystemMetrics(77);
@@ -194,7 +22,7 @@ RECT CppShot::getDesktopRect() {
     return rctDesktop;
 }
 
-RECT CppShot::getCaptureRect(HWND window) {
+RECT getCaptureRect(HWND window) {
     RECT rct;
     auto rctDesktop = CppShot::getDesktopRect();
 
@@ -210,13 +38,13 @@ RECT CppShot::getCaptureRect(HWND window) {
     return rct;
 }
 
-BOOL CALLBACK CppShot::getMonitorRectsCallback(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
+BOOL CALLBACK getMonitorRectsCallback(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
     std::vector<RECT>* monitors = reinterpret_cast<std::vector<RECT>*>(dwData);
     monitors->push_back(*lprcMonitor);
     return TRUE;
 }
 
-std::vector<RECT> CppShot::getMonitorRects() {
+std::vector<RECT> getMonitorRects() {
     std::vector<RECT> monitors;
 
     // EnumDisplayMonitors doesn't exist on Win95 — load it dynamically
@@ -237,7 +65,7 @@ std::vector<RECT> CppShot::getMonitorRects() {
     return monitors;
 }
 
-unsigned int CppShot::getDPIForWindow(HWND window) {
+unsigned int getDPIForWindow(HWND window) {
     // Use GetDpiForWindow if available (Win10+)
     if (HMODULE hUser32 = GetModuleHandleA("user32.dll")) {
         if (auto pGetDpiForWindow = reinterpret_cast<UINT(WINAPI*)(HWND)>(GetProcAddress(hUser32, "GetDpiForWindow"))) {
@@ -254,48 +82,208 @@ unsigned int CppShot::getDPIForWindow(HWND window) {
     return dpi;
 }
 
-void CppShot::saveHotkey(LPCTSTR name, UINT modifiers, UINT vk) {
+// Convert a hotkey combination to string representation
+std::string HotkeyToString(UINT modifiers, UINT vk) {
+    std::string result = "";
+
+    if (modifiers & MOD_CONTROL) result += "CTRL+";
+    if (modifiers & MOD_ALT)     result += "ALT+";
+    if (modifiers & MOD_SHIFT)   result += "SHIFT+";
+    if (modifiers & MOD_WIN)     result += "WIN+";
+
+    if (vk >= 0x41 && vk <= 0x5A) { result += (char)vk; return result; }
+    if (vk >= 0x30 && vk <= 0x39) { result += (char)vk; return result; }
+
+    if (vk >= VK_F1 && vk <= VK_F24) {
+        result += "F" + std::to_string(vk - VK_F1 + 1);
+        return result;
+    }
+
+    if (vk >= VK_NUMPAD0 && vk <= VK_NUMPAD9) {
+        result += "NUM" + std::to_string(vk - VK_NUMPAD0);
+        return result;
+    }
+
+    switch (vk) {
+        case VK_SPACE:      result += "SPACE";     break;
+        case VK_RETURN:     result += "ENTER";     break;
+        case VK_ESCAPE:     result += "ESC";       break;
+        case VK_TAB:        result += "TAB";       break;
+        case VK_BACK:       result += "BACKSPACE"; break;
+        case VK_DELETE:     result += "DELETE";    break;
+        case VK_INSERT:     result += "INSERT";    break;
+        case VK_HOME:       result += "HOME";      break;
+        case VK_END:        result += "END";       break;
+        case VK_PRIOR:      result += "PAGE UP";   break;
+        case VK_NEXT:       result += "PAGE DOWN"; break;
+        case VK_LEFT:       result += "LEFT";      break;
+        case VK_RIGHT:      result += "RIGHT";     break;
+        case VK_UP:         result += "UP";        break;
+        case VK_DOWN:       result += "DOWN";      break;
+        case VK_PRINT:      result += "PRINT";     break;
+        case VK_SNAPSHOT:   result += "PRTSC";     break;
+        case VK_PAUSE:      result += "PAUSE";     break;
+        case VK_CAPITAL:    result += "CAPS";      break;
+        case VK_NUMLOCK:    result += "NUMLOCK";   break;
+        case VK_SCROLL:     result += "SCROLL";    break;
+        case VK_MULTIPLY:   result += "NUM*";      break;
+        case VK_ADD:        result += "NUM+";      break;
+        case VK_SUBTRACT:   result += "NUM-";      break;
+        case VK_DIVIDE:     result += "NUM/";      break;
+        case VK_DECIMAL:    result += "NUM.";      break;
+        case VK_OEM_1:      result += ";";         break;
+        case VK_OEM_2:      result += "/";         break;
+        case VK_OEM_3:      result += "`";         break;
+        case VK_OEM_4:      result += "[";         break;
+        case VK_OEM_5:      result += "\\";        break;
+        case VK_OEM_6:      result += "]";         break;
+        case VK_OEM_7:      result += "'";         break;
+        case VK_OEM_PLUS:   result += "=";         break;
+        case VK_OEM_MINUS:  result += "-";         break;
+        case VK_OEM_COMMA:  result += ",";         break;
+        case VK_OEM_PERIOD: result += ".";         break;
+        default: {
+            char buf[8];
+            sprintf(buf, "0x%02X", vk);
+            result += buf;
+            break;
+        }
+    }
+
+    return result;
+}
+
+// Registry read/write functions
+std::string getRegistry(const char* pszValueName, const char* defaultValue)
+{
     HKEY hKey = NULL;
-    LPCTSTR pszSubkey = _T("SOFTWARE\\CppShot");
+    const char* pszSubkey = "SOFTWARE\\CppShot";
+
     DWORD dwDisposition;
+    if (RegCreateKeyExA(
+            HKEY_CURRENT_USER,
+            pszSubkey,
+            0, NULL,
+            REG_OPTION_NON_VOLATILE,
+            KEY_READ,
+            NULL,
+            &hKey,
+            &dwDisposition) != ERROR_SUCCESS)
+    {
+        std::cout << "Unable to open/create registry key" << std::endl;
+        return std::string(defaultValue);
+    }
 
-    if (RegCreateKeyEx(HKEY_CURRENT_USER, pszSubkey, 0, NULL,
-        REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &hKey, &dwDisposition) != ERROR_SUCCESS)
-        return;
+    char szValue[1024];
+    DWORD cbValueLength = sizeof(szValue);
 
-    std::wstring modKey = std::wstring(name) + L"_mod";
-    std::wstring vkKey  = std::wstring(name) + L"_vk";
-
-    DWORD mod = (DWORD)modifiers;
-    DWORD key = (DWORD)vk;
-
-    RegSetValueEx(hKey, modKey.c_str(), 0, REG_DWORD, (const BYTE*)&mod, sizeof(DWORD));
-    RegSetValueEx(hKey, vkKey.c_str(),  0, REG_DWORD, (const BYTE*)&key, sizeof(DWORD));
+    if (RegQueryValueExA(
+            hKey,
+            pszValueName,
+            NULL,
+            NULL,
+            reinterpret_cast<LPBYTE>(&szValue),
+            &cbValueLength) != ERROR_SUCCESS)
+    {
+        RegCloseKey(hKey);
+        return std::string(defaultValue);
+    }
 
     RegCloseKey(hKey);
+    return std::string(szValue);
 }
 
-std::pair<UINT, UINT> CppShot::loadHotkey(LPCTSTR name, UINT defaultModifiers, UINT defaultVk) {
+std::string changeRegistry(const char* pszValueName, const std::string& newValue)
+{
     HKEY hKey = NULL;
-    LPCTSTR pszSubkey = _T("SOFTWARE\\CppShot");
+    const char* pszSubkey = "SOFTWARE\\CppShot";
 
-    if (RegCreateKeyEx(HKEY_CURRENT_USER, pszSubkey, 0, NULL,
-        REG_OPTION_NON_VOLATILE, KEY_READ, NULL, &hKey, NULL) != ERROR_SUCCESS)
-        return { defaultModifiers, defaultVk };
+    DWORD dwDisposition;
+    if (RegCreateKeyExA(
+            HKEY_CURRENT_USER,
+            pszSubkey,
+            0, NULL,
+            REG_OPTION_NON_VOLATILE,
+            KEY_SET_VALUE,
+            NULL,
+            &hKey,
+            &dwDisposition) != ERROR_SUCCESS)
+    {
+        std::cout << "Unable to open/create registry key" << std::endl;
+        return "";
+    }
 
-    std::wstring modKey = std::wstring(name) + L"_mod";
-    std::wstring vkKey  = std::wstring(name) + L"_vk";
-
-    DWORD mod = 0, key = 0;
-    DWORD size = sizeof(DWORD);
-
-    bool modOk = RegQueryValueEx(hKey, modKey.c_str(), NULL, NULL, (LPBYTE)&mod, &size) == ERROR_SUCCESS;
-    bool vkOk  = RegQueryValueEx(hKey, vkKey.c_str(),  NULL, NULL, (LPBYTE)&key, &size) == ERROR_SUCCESS;
+    if (RegSetValueExA(
+            hKey,
+            pszValueName,
+            0,
+            REG_SZ,
+            reinterpret_cast<const BYTE*>(newValue.c_str()),
+            (newValue.length() + 1)) != ERROR_SUCCESS)
+    {
+        RegCloseKey(hKey);
+        return "";
+    }
 
     RegCloseKey(hKey);
-
-    if (!modOk || !vkOk)
-        return { defaultModifiers, defaultVk };
-
-    return { (UINT)mod, (UINT)key };
+    return newValue;
 }
+
+// Hotkey save/load functions
+void saveHotkey(const char* name, UINT modifiers, UINT vk) {
+    changeRegistry((std::string(name) + "_mod").c_str(), std::to_string(modifiers));
+    changeRegistry((std::string(name) + "_vk").c_str(), std::to_string(vk));
+}
+
+std::pair<UINT, UINT> loadHotkey(const char* name, UINT defaultModifiers, UINT defaultVk) {
+    UINT modifiers = defaultModifiers;
+    UINT vk = defaultVk;
+
+    try {
+        modifiers = static_cast<UINT>(
+            std::stoul(getRegistry(
+                (std::string(name) + "_mod").c_str(),
+                std::to_string(defaultModifiers).c_str() // <-- add .c_str() here
+            ))
+        );
+        vk = static_cast<UINT>(
+            std::stoul(getRegistry(
+                (std::string(name) + "_vk").c_str(),
+                std::to_string(defaultVk).c_str() // <-- add .c_str() here
+            ))
+        );
+    } catch (...) {
+        // fallback to defaults
+    }
+
+    return {modifiers, vk};
+}
+
+// Gdiplus status string helper
+const char* statusString(const Gdiplus::Status status) {
+    switch (status) {
+        case Gdiplus::Ok:                        return "Ok";
+        case Gdiplus::GenericError:              return "GenericError";
+        case Gdiplus::InvalidParameter:          return "InvalidParameter";
+        case Gdiplus::OutOfMemory:               return "OutOfMemory";
+        case Gdiplus::ObjectBusy:                return "ObjectBusy";
+        case Gdiplus::InsufficientBuffer:        return "InsufficientBuffer";
+        case Gdiplus::NotImplemented:            return "NotImplemented";
+        case Gdiplus::Win32Error:                return "Win32Error";
+        case Gdiplus::Aborted:                   return "Aborted";
+        case Gdiplus::FileNotFound:              return "FileNotFound";
+        case Gdiplus::ValueOverflow:             return "ValueOverflow";
+        case Gdiplus::AccessDenied:              return "AccessDenied";
+        case Gdiplus::UnknownImageFormat:        return "UnknownImageFormat";
+        case Gdiplus::FontFamilyNotFound:        return "FontFamilyNotFound";
+        case Gdiplus::FontStyleNotFound:         return "FontStyleNotFound";
+        case Gdiplus::NotTrueTypeFont:           return "NotTrueTypeFont";
+        case Gdiplus::UnsupportedGdiplusVersion: return "UnsupportedGdiplusVersion";
+        case Gdiplus::GdiplusNotInitialized:     return "GdiplusNotInitialized";
+        case Gdiplus::PropertyNotFound:          return "PropertyNotFound";
+        case Gdiplus::PropertyNotSupported:      return "PropertyNotSupported";
+        default:                                 return "Status Type Not Found.";
+    }
+}
+
+} // namespace CppShot
