@@ -9,7 +9,7 @@
 #include <string>
 
 MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", "BCppShot", 0, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX) {
-    setSize(230, 270);
+    setSize(230, 230);
     this->addButton()
         .setCallback([this]() { onOpenExplorer(); })
         .setPosition(10, 10)
@@ -21,7 +21,7 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
         .setSize(200, 30)
         .setTitle("Settings");
     this->addButton()
-        .setCallback([this]() { onChangeKeybinds(); })
+        .setCallback([this]() { onOpenAbout(); })
         .setPosition(10, 90)
         .setSize(200, 30)
         .setTitle("About");
@@ -42,8 +42,6 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
     std::string hotkey_b1_b2      = CppShot::HotkeyToString(mod2, vk2);
     std::string hotkey_b1_b2_text = "_b1 + _b2:   " + hotkey_b1_b2;
     this->addLabel(hotkey_b1_b2_text.c_str(), 10, 170, 200, 20);
-
-    this->addLabel("BetterCppShot, by Redlean", 10, 210, 200, 20);
 }
 
 void MainWindow::onOpenExplorer() {
@@ -71,6 +69,100 @@ void MainWindow::onOpenExplorer_change() {
         imalloc->Release();
     }
 }
+
+// about stuff
+
+static LRESULT CALLBACK AboutWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_COMMAND:
+            if (LOWORD(wParam) == 1) { // OK button
+                DestroyWindow(hWnd);
+            }
+            return 0;
+
+        case WM_CLOSE:
+            DestroyWindow(hWnd);
+            return 0;
+    }
+    return DefWindowProcA(hWnd, msg, wParam, lParam);
+}
+
+void MainWindow::onOpenAbout() {
+    const char* className = "AboutWnd";
+
+    HINSTANCE instance = GetModuleHandle(NULL);
+
+    HICON hIcon = (HICON) LoadImage(instance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED);
+
+    WNDCLASSA wc = {};
+    wc.lpfnWndProc   = AboutWndProc;
+    wc.hInstance     = GetModuleHandle(NULL);
+    wc.hIcon         = hIcon;
+    wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+    wc.lpszClassName = className;
+    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+
+    RegisterClassA(&wc);
+
+    HWND hDlg = CreateWindowExA(
+        WS_EX_DLGMODALFRAME,
+        className,
+        "About BetterCppShot",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        250, 210,
+        this->getWindow(),
+        NULL,
+        GetModuleHandle(NULL),
+        NULL
+    );
+
+    CreateWindowA("STATIC", "BetterCppShot",
+        WS_CHILD | WS_VISIBLE | SS_CENTER,
+        10, 10, 230, 20,
+        hDlg, NULL, GetModuleHandle(NULL), NULL);
+
+    CreateWindowA("STATIC", PROJECT_VERSION,
+        WS_CHILD | WS_VISIBLE | SS_CENTER,
+        10, 40, 230, 20,
+        hDlg, NULL, GetModuleHandle(NULL), NULL);
+
+    CreateWindowA("STATIC", "CppShot by Cvolton",
+        WS_CHILD | WS_VISIBLE | SS_CENTER,
+        10, 70, 230, 20,
+        hDlg, NULL, GetModuleHandle(NULL), NULL);
+
+    CreateWindowA("STATIC", "Edited by Redlean",
+        WS_CHILD | WS_VISIBLE | SS_CENTER,
+        10, 110, 230, 20,
+        hDlg, NULL, GetModuleHandle(NULL), NULL);
+
+    CreateWindowA("BUTTON", "OK",
+        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        85, 140, 80, 30,
+        hDlg, (HMENU)1, GetModuleHandle(NULL), NULL);
+
+        ShowWindow(hDlg, SW_SHOW);
+    UpdateWindow(hDlg);
+
+    EnableWindow(this->getWindow(), FALSE);
+
+    MSG msg = {};
+    bool closed = false;
+
+    while (!closed && GetMessageA(&msg, NULL, 0, 0)) {
+        if (!IsWindow(hDlg)) break;
+
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+
+        if (!IsWindow(hDlg)) closed = true;
+    }
+
+    EnableWindow(this->getWindow(), TRUE);
+    SetActiveWindow(this->getWindow());
+}
+
 
 // settings stuff
 

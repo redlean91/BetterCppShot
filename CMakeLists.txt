@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-project(BetterCppShot VERSION 1.1.0)
+project(BetterCppShot VERSION 1.2.0)
 add_definitions(-DUNICODE -D_UNICODE)
 
 IF(MSVC)
