@@ -10,7 +10,7 @@ IF(MSVC)
 ENDIF()
 
 # 0x0400 = Windows 95/NT4, IE 0x0300 = IE 3.0 (lowest available)
-add_definitions(-D_WIN32_WINNT=0x0400 -D_WIN32_IE=0x0300 -DWINVER=0x0400)
+add_definitions(-D_WIN32_WINNT=0x0501 -D_WIN32_IE=0x0300 -DWINVER=0x0501)
 # Note: UNICODE is intentionally omitted — Win95 has very poor Unicode support.
 # Use ANSI API calls (e.g. MessageBoxA) where possible for 95 compat.
 
@@ -47,6 +47,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE src)
+target_include_directories(${PROJECT_NAME} PRIVATE res)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/src)
 
 IF(DEFINED LINK_UNICOWS)
