@@ -198,6 +198,8 @@ static LRESULT CALLBACK SettingsWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPAR
                     mainWnd->onOpenExplorer_change();
                 } else if (id == 204) {
                     mainWnd->onChangeKeybinds();
+                } else if (id == 205) {
+                    mainWnd->onChangeDelay();
                 }
 
                 return 0;
@@ -229,7 +231,7 @@ void MainWindow::onOpenSettings() {
         "Settings",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        230, 270,
+        230, 220,
         this->getWindow(),
         NULL,
         GetModuleHandle(NULL),
@@ -257,14 +259,32 @@ void MainWindow::onOpenSettings() {
     );
 
     CreateWindowA(
+        "BUTTON", "Delay",
+        WS_CHILD | WS_VISIBLE,
+        10, 90, 200, 30,
+        hDlg,
+        (HMENU)205, // ID
+        GetModuleHandle(NULL),
+        NULL
+    );
+
+    CreateWindowA(
         "BUTTON", "Close",
         WS_CHILD | WS_VISIBLE,
-        75, 200, 70, 30,
+        75, 150, 70, 30,
         hDlg,
         (HMENU)202, // ID
         GetModuleHandle(NULL),
         NULL
     );
+
+    // Center over parent
+    RECT rcParent, rcDlg;
+    GetWindowRect(this->getWindow(), &rcParent);
+    GetWindowRect(hDlg, &rcDlg);
+    int x = rcParent.left + (rcParent.right  - rcParent.left - (rcDlg.right  - rcDlg.left)) / 2;
+    int y = rcParent.top  + (rcParent.bottom - rcParent.top  - (rcDlg.bottom - rcDlg.top))  / 2;
+    SetWindowPos(hDlg, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 
     ShowWindow(hDlg, SW_SHOW);
     UpdateWindow(hDlg);
@@ -348,11 +368,16 @@ void MainWindow::onChangeKeybinds() {
     g_cap1 = { hotkey1.first, hotkey1.second, NULL };
     g_cap2 = { hotkey2.first, hotkey2.second, NULL };
 
+    HINSTANCE instance = GetModuleHandle(NULL);
+
+    HICON hIcon = (HICON) LoadImage(instance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED);
+
     WNDCLASSA wc = {};
     wc.lpfnWndProc   = HotkeyDlgProc;
     wc.hInstance     = GetModuleHandle(NULL);
     wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
     wc.lpszClassName = "HotkeyDlg";
+    wc.hIcon = hIcon;
     wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
     RegisterClassA(&wc);
 
@@ -360,32 +385,32 @@ void MainWindow::onChangeKeybinds() {
         WS_EX_DLGMODALFRAME,
         "HotkeyDlg", "Change Keybinds",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
-        CW_USEDEFAULT, CW_USEDEFAULT, 310, 250,
+        CW_USEDEFAULT, CW_USEDEFAULT, 310, 270,
         this->getWindow(), NULL, GetModuleHandle(NULL), NULL
     );
 
-    CreateWindowA("STATIC", "_b1",        WS_CHILD | WS_VISIBLE, 10, 15, 120, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
-    CreateWindowA("STATIC", "_b1 + _b2", WS_CHILD | WS_VISIBLE, 10, 75, 120, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "_b1",        WS_CHILD | WS_VISIBLE, 10, 55, 120, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "_b1 + _b2", WS_CHILD | WS_VISIBLE, 10, 115, 120, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     HWND hPreview1 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap1.mod, g_cap1.vk).c_str(),
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
-        10, 35, 280, 25, hDlg, (HMENU)101, GetModuleHandle(NULL), NULL);
+        10, 75, 280, 25, hDlg, (HMENU)101, GetModuleHandle(NULL), NULL);
 
     HWND hPreview2 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap2.mod, g_cap2.vk).c_str(),
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
-        10, 95, 280, 25, hDlg, (HMENU)102, GetModuleHandle(NULL), NULL);
+        10, 135, 280, 25, hDlg, (HMENU)102, GetModuleHandle(NULL), NULL);
 
     g_cap1.hPreview = hPreview1;
     g_cap2.hPreview = hPreview2;
 
     CreateWindowA("STATIC", "Click a box then press your desired key combo.", WS_CHILD | WS_VISIBLE | SS_CENTER,
-        10, 130, 280, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
+        10, 15, 280, 40, hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     CreateWindowA("STATIC", "*A restart of the application is required.", WS_CHILD | WS_VISIBLE | SS_CENTER,
-        10, 150, 280, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
+        10, 170, 280, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 60,  175, 80, 28, hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
-    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   155, 175, 80, 28, hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 60,  195, 80, 28, hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   155, 195, 80, 28, hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
 
     SetWindowSubclass(hPreview1, HotkeySubclassProc, 1, (DWORD_PTR)&g_cap1);
     SetWindowSubclass(hPreview2, HotkeySubclassProc, 2, (DWORD_PTR)&g_cap2);
@@ -413,4 +438,102 @@ void MainWindow::onChangeKeybinds() {
     RemoveWindowSubclass(hPreview1, HotkeySubclassProc, 1);
     RemoveWindowSubclass(hPreview2, HotkeySubclassProc, 2);
     UnregisterClassA("HotkeyDlg", GetModuleHandle(NULL));
+};
+
+// delay
+
+struct Delay {
+    UINT delay;
+    HWND hPReview;
+};
+
+static Delay new_delay;
+
+static LRESULT CALLBACK DelayDlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_COMMAND: {
+            int id = LOWORD(wParam);
+            if (id == 303) { // OK
+
+                char buffer[64];
+
+                GetDlgItemTextA(hWnd, 1001, buffer, sizeof(buffer));
+
+                int value = 0;
+                try {
+                    value = std::stoi(buffer);
+                } catch (...) {
+                    value = 0;
+                }
+
+                CppShot::changeRegistryInt("Delay", value);
+                DestroyWindow(hWnd);
+            } else if (id == 304) { // Cancel
+                DestroyWindow(hWnd);
+            } 
+            return 0;
+        }
+        case WM_CLOSE:
+            DestroyWindow(hWnd);
+            return 0;
+        case WM_DESTROY:
+            return 0;
+    }
+    return DefWindowProcA(hWnd, msg, wParam, lParam);
+};
+
+void MainWindow::onChangeDelay() {
+    // Loading the delay
+    int m_delay = CppShot::getRegistryInt("Delay", 0);
+
+    new_delay.delay = m_delay;
+
+    // delay in string
+    std::string delay_str = std::to_string(new_delay.delay);
+
+    WNDCLASSA wc = {};
+    wc.lpfnWndProc = DelayDlgProc;
+    wc.hInstance = GetModuleHandle(NULL);
+    wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+    wc.lpszClassName = "DelayDlg";
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    RegisterClassA(&wc);
+
+    HWND hDlg = CreateWindowExA(
+        WS_EX_DLGMODALFRAME,
+        "DelayDlg",
+        "Change Delay",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+        CW_USEDEFAULT, CW_USEDEFAULT, 310, 180,
+        this->getWindow(), NULL, GetModuleHandle(NULL), NULL
+    );
+
+    HWND hEdit = CreateWindowExA(
+        WS_EX_CLIENTEDGE,
+        "EDIT",
+        delay_str.c_str(),
+        WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER,
+        50, 60, 200, 25,
+        hDlg,
+        (HMENU)1001,
+        GetModuleHandle(NULL),
+        NULL
+    );
+
+    CreateWindowA("STATIC", "Click on the text box and write your delay in milliseconds.", WS_CHILD | WS_VISIBLE | SS_CENTER,
+        10, 10, 280, 40, hDlg, NULL, GetModuleHandle(NULL), NULL);
+    
+    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 60,  105, 80, 28, hDlg, (HMENU)303, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   155, 105, 80, 28, hDlg, (HMENU)304, GetModuleHandle(NULL), NULL);
+
+    // Center over parent
+    RECT rcParent, rcDlg;
+    GetWindowRect(this->getWindow(), &rcParent);
+    GetWindowRect(hDlg, &rcDlg);
+    int x = rcParent.left + (rcParent.right  - rcParent.left - (rcDlg.right  - rcDlg.left)) / 2;
+    int y = rcParent.top  + (rcParent.bottom - rcParent.top  - (rcDlg.bottom - rcDlg.top))  / 2;
+    SetWindowPos(hDlg, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
+    ShowWindow(hDlg, SW_SHOW);
+    UpdateWindow(hDlg);
 }

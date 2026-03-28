@@ -1,0 +1,5 @@
+1.2
+fixed icon of the program
+added settings menu
+added about menu
+changed compatibility in cmakelists from WinNT to Win2000 cause on x32 the hotkey to string function wouldnt compile

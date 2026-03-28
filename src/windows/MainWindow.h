@@ -10,4 +10,5 @@ public:
 	MainWindow();
 	void onOpenExplorer_change();
 	void onChangeKeybinds();
+	void onChangeDelay();
 };

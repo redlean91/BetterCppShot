@@ -8,8 +8,10 @@
 
 namespace CppShot {
     std::string getRegistry(const char* pszValueName, const char* defaultValue);
+    int getRegistryInt(const char* pszValueName, const int defaultValue);
     std::string getSaveDirectory();
     std::string changeRegistry(const char* pszValueName, const std::string& newValue);
+    int changeRegistryInt(const char* pszValueName, const int newValue);
     std::string HotkeyToString(UINT modifiers, UINT vk);
     void saveHotkey(const char* name, UINT modifiers, UINT vk);
     std::pair<UINT, UINT> loadHotkey(const char* name, UINT defaultModifiers, UINT defaultVk);

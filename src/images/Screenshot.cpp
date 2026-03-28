@@ -1,5 +1,6 @@
 #include "Screenshot.h"
 #include "..\Utils.h"
+#include <windows.h>
 
 Screenshot::Screenshot() {}
 
@@ -15,6 +16,7 @@ void Screenshot::capture(HWND window) {
 	delete m_image;
 
     m_window = window;
+    int m_delay = CppShot::getRegistryInt("Delay", 0);
 	RECT rct = createRect();
 
 	HDC hdc = GetDC(HWND_DESKTOP);
@@ -22,6 +24,7 @@ void Screenshot::capture(HWND window) {
     HBITMAP hbitmap = CreateCompatibleBitmap(hdc, rct.right - rct.left, rct.bottom - rct.top);
 
     SelectObject(memdc, hbitmap);
+    Sleep(m_delay); // Small delay so that notifs wont screw up transparency while taking.
     BitBlt(memdc, 0, 0, rct.right - rct.left, rct.bottom - rct.top, hdc, rct.left, rct.top, SRCCOPY );
 
     DeleteDC(memdc);
