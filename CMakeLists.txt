@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-project(BetterCppShot VERSION 1.1.0)
+project(BetterCppShot VERSION 1.2.0)
 add_definitions(-DUNICODE -D_UNICODE)
 
 IF(MSVC)
@@ -23,10 +23,13 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/src/version.h
     @ONLY)
 
+    
 file(GLOB_RECURSE SOURCES
     src/*.cpp
     res/*.rc
 )
+
+set(CMAKE_RC_FLAGS "--include-dir=${CMAKE_SOURCE_DIR}/res")
 
 add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/res/resources.rc)
 

@@ -193,6 +193,45 @@ std::string getRegistry(const char* pszValueName, const char* defaultValue)
     return std::string(szValue);
 }
 
+// Registry read/write functions
+int getRegistryInt(const char* pszValueName, const int defaultValue)
+{
+    HKEY hKey = NULL;
+    const char* pszSubkey = "SOFTWARE\\CppShot";
+
+    DWORD dwDisposition;
+    if (RegCreateKeyExA(
+            HKEY_CURRENT_USER,
+            pszSubkey,
+            0, NULL,
+            REG_OPTION_NON_VOLATILE,
+            KEY_READ,
+            NULL,
+            &hKey,
+            &dwDisposition) != ERROR_SUCCESS)
+    {
+        return defaultValue;
+    }
+
+    DWORD value = 0;
+    DWORD size = sizeof(value);
+
+    if (RegQueryValueExA(
+            hKey,
+            pszValueName,
+            NULL,
+            NULL,
+            reinterpret_cast<LPBYTE>(&value),
+            &size) != ERROR_SUCCESS)
+    {
+        RegCloseKey(hKey);
+        return defaultValue;
+    }
+
+    RegCloseKey(hKey);
+    return static_cast<int>(value);
+}
+
 std::string changeRegistry(const char* pszValueName, const std::string& newValue)
 {
     HKEY hKey = NULL;
@@ -229,6 +268,42 @@ std::string changeRegistry(const char* pszValueName, const std::string& newValue
     return newValue;
 }
 
+int changeRegistryInt(const char* pszValueName, const int newValue)
+{
+    HKEY hKey = NULL;
+    const char* pszSubkey = "SOFTWARE\\CppShot";
+
+    DWORD dwDisposition;
+    if (RegCreateKeyExA(
+            HKEY_CURRENT_USER,
+            pszSubkey,
+            0, NULL,
+            REG_OPTION_NON_VOLATILE,
+            KEY_SET_VALUE,
+            NULL,
+            &hKey,
+            &dwDisposition) != ERROR_SUCCESS)
+    {
+        std::cout << "Unable to open/create registry key" << std::endl;
+        return -1;
+    }
+
+    if (RegSetValueExA(
+            hKey,
+            pszValueName,
+            0,
+            REG_DWORD,
+            reinterpret_cast<const BYTE*>(&newValue),
+            sizeof(newValue)) != ERROR_SUCCESS)
+    {
+        RegCloseKey(hKey);
+        return -1;
+    }
+
+    RegCloseKey(hKey);
+    return newValue;
+}
+
 // Hotkey save/load functions
 void saveHotkey(const char* name, UINT modifiers, UINT vk) {
     changeRegistry((std::string(name) + "_mod").c_str(), std::to_string(modifiers));
@@ -243,13 +318,13 @@ std::pair<UINT, UINT> loadHotkey(const char* name, UINT defaultModifiers, UINT d
         modifiers = static_cast<UINT>(
             std::stoul(getRegistry(
                 (std::string(name) + "_mod").c_str(),
-                std::to_string(defaultModifiers).c_str() // <-- add .c_str() here
+                std::to_string(defaultModifiers).c_str() 
             ))
         );
         vk = static_cast<UINT>(
             std::stoul(getRegistry(
                 (std::string(name) + "_vk").c_str(),
-                std::to_string(defaultVk).c_str() // <-- add .c_str() here
+                std::to_string(defaultVk).c_str()
             ))
         );
     } catch (...) {

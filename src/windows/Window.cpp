@@ -16,16 +16,12 @@ Window::Window(HBRUSH brush, const char* className, const char* title, DWORD dwE
     icc.dwICC = ICC_WIN95_CLASSES;
     InitCommonControlsEx(&icc);
 
-    // Get icon path relative to exe location
-    char exePath[MAX_PATH];
-    GetModuleFileNameA(NULL, exePath, MAX_PATH);
-    char* lastSlash = strrchr(exePath, '\\');
-    if (lastSlash) *(lastSlash + 1) = '\0';
-    char iconPath[MAX_PATH];
-    sprintf(iconPath, "%sres\\cppshot32.ico", exePath);
+    // DOnt mind this, its just a debug thing i wanted to do lol
+    // HICON hIconBig   = (HICON)LoadImageA(NULL, "res\\cppshot32.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+    // HICON hIconSmall = (HICON)LoadImageA(NULL, "res\\cppshot32.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
 
-    HICON hIconBig   = (HICON)LoadImageA(NULL, "res\\cppshot32.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
-    HICON hIconSmall = (HICON)LoadImageA(NULL, "res\\cppshot32.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+    HICON hIconBig = (HICON) LoadImage(instance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED);
+    HICON hIconSmall = (HICON) LoadImage(instance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED);
 
     WNDCLASSEXA wincl; // Note the 'A' for ANSI
     wincl.hInstance = instance;
@@ -33,8 +29,8 @@ Window::Window(HBRUSH brush, const char* className, const char* title, DWORD dwE
     wincl.lpfnWndProc = Window::windowProcedure;
     wincl.style = CS_DBLCLKS;
     wincl.cbSize = sizeof(WNDCLASSEX);
-    wincl.hIcon = hIconBig ? hIconBig : LoadIconA(NULL, (LPCSTR)IDI_APPLICATION);
-    wincl.hIconSm = hIconSmall ? hIconSmall : LoadIconA(NULL, (LPCSTR)IDI_APPLICATION);
+    wincl.hIcon = hIconBig;
+    wincl.hIconSm = hIconSmall;
     wincl.hCursor = LoadCursorA(NULL, (LPCSTR)IDC_ARROW);
     wincl.lpszMenuName = NULL;
     wincl.cbClsExtra = 0;
@@ -60,12 +56,12 @@ Window::Window(HBRUSH brush, const char* className, const char* title, DWORD dwE
 
     SetWindowLongPtrA(m_window, GWLP_USERDATA, (LONG_PTR)this);
 
-    if (hIconBig && hIconSmall) {
-        SetClassLongPtrA(m_window, GCLP_HICON,   (LONG_PTR)hIconBig);
-        SetClassLongPtrA(m_window, GCLP_HICONSM, (LONG_PTR)hIconSmall);
-        SendMessageA(m_window, WM_SETICON, ICON_BIG,   (LPARAM)hIconBig);
-        SendMessageA(m_window, WM_SETICON, ICON_SMALL, (LPARAM)hIconSmall);
-    }
+    // if (hIconBig && hIconSmall) {
+    //     SetClassLongPtrA(m_window, GCLP_HICON,   (LONG_PTR)hIconBig);
+    //     SetClassLongPtrA(m_window, GCLP_HICONSM, (LONG_PTR)hIconSmall);
+    //     SendMessageA(m_window, WM_SETICON, ICON_BIG,   (LPARAM)hIconBig);
+    //     SendMessageA(m_window, WM_SETICON, ICON_SMALL, (LPARAM)hIconSmall);
+    // }
 
     // Force remove resize border and maximize box
     LONG style = GetWindowLongA(m_window, GWL_STYLE);
