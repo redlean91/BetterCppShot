@@ -19,8 +19,17 @@
 const char blackBackdropClassName[] = "BlackBackdropWindow";
 const char whiteBackdropClassName[] = "WhiteBackdropWindow";
 
-inline bool FileExists(const std::string& name) {
-    return GetFileAttributesA(name.c_str()) != INVALID_FILE_ATTRIBUTES && GetLastError() != ERROR_FILE_NOT_FOUND;
+inline bool FileExists(const std::wstring& name) {
+    return GetFileAttributesW(name.c_str()) != INVALID_FILE_ATTRIBUTES;
+}
+
+// made this since the whole program i changed it from utf-8 to widestrign hoping it would work on win98
+std::wstring Utf8ToWide(const std::string& utf8) {
+    if (utf8.empty()) return {};
+    int len = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, nullptr, 0);
+    std::wstring wide(len - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, (LPWSTR)wide.data(), len);
+    return wide;
 }
 
 void RemoveIllegalChars(std::string& str) {
@@ -38,20 +47,24 @@ std::string GetSafeFilenameBase(std::string windowTitle) {
     std::string path = CppShot::getSaveDirectory();
 
     // CreateDirectory with wide string
-    CreateDirectoryA(path.c_str(), NULL);
+    CreateDirectoryW(Utf8ToWide(path).c_str(), NULL);
 
-    std::stringstream pathbuild;
-    std::string fileNameBase;
+    std::wstring widePath = Utf8ToWide(path);
+    std::wstring wideTitle = Utf8ToWide(windowTitle);
+    std::wstring fileNameBase;
 
     unsigned int i = 0;
     do {
-        pathbuild.str("");
-        pathbuild << path << "\\" << windowTitle << "_" << i;
+        std::wstringstream pathbuild;
+        pathbuild << widePath << L"\\" << wideTitle << L"_" << i;
         fileNameBase = pathbuild.str();
         i++;
-    } while (FileExists(fileNameBase + "_b1.png") || FileExists(fileNameBase + "_b2.png"));
+    } while (FileExists(fileNameBase + L"_b1.png") || FileExists(fileNameBase + L"_b2.png"));
 
-    return fileNameBase;
+    //convertting back to utf8
+    int len = WideCharToMultiByte(CP_UTF8, 0, fileNameBase.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::string result(len - 1, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, fileNameBase.c_str(), -1, (LPSTR)result.data(), len, nullptr, nullptr);    return result;
 }
 
 void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow& whiteWindow, BackdropWindow& blackWindow, bool creMode) {
