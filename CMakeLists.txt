@@ -62,5 +62,5 @@ target_link_libraries(${PROJECT_NAME} gdiplus advapi32 gdi32 user32 kernel32 com
 set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 IF(NOT MSVC)
-    target_link_libraries(${PROJECT_NAME} -static-libgcc -static-libstdc++)
+    target_link_options(${PROJECT_NAME} PRIVATE -static -static-libgcc -static-libstdc++)
 ENDIF()
