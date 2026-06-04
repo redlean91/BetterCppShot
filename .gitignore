@@ -16,5 +16,8 @@ Desktop.ini
 
 # build from shitty stuff
 build/
+# linustechtips
+build-win32/
+build-win64/
 
 changelog.txt
