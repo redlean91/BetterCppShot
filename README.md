@@ -8,6 +8,12 @@ A transparent screnshot utility written in C++. Tested for compatibility on Wind
 ## Building notes
 The build environment uses CMake.
 
+Compiling BetterCppShot on Linux will cause `libwinpthread-1.dll` not found error.
+
+![an image of libwinpthread-1.dll not found](/assets/linux-compile.jpg)
+
+A workaround is to copy `libwinpthread-1.dll` to the same directory as BetterCppShot.exe
+
 ### x86/x64 - TDM-GCC 5.1
 This is currently the latest compiler I've been able to find that supports Windows 98 and 2000. Note that this compiler doesn't support features beyond C++14. Available for download [here](https://sourceforge.net/projects/tdm-gcc/files/TDM-GCC%20Installer/).
 
@@ -17,4 +23,3 @@ mkdir build
 cd build
 cmake -G "MinGW Makefiles" ..
 mingw32-make
-```
