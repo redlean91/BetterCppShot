@@ -19,8 +19,20 @@
 const char blackBackdropClassName[] = "BlackBackdropWindow";
 const char whiteBackdropClassName[] = "WhiteBackdropWindow";
 
+static std::wstring Utf8ToWide(const std::string& s) {
+    if (s.empty()) return {};
+    int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, NULL, 0);
+    std::wstring w(n, 0);
+    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], n);
+    return w;
+}
+
+// GetFileAttributesA uses the ANSI code and it can't resolve UTF-8 encoded non-ASCII chars,
+// that caused FileExists to always return false for non-english window titles and overwriting the screenshot everytime
+
+// GetFileAttributesW takes a wild string and handles Unicode correctly. matching how GDI+ saves the file.
 inline bool FileExists(const std::string& name) {
-    return GetFileAttributesA(name.c_str()) != INVALID_FILE_ATTRIBUTES && GetLastError() != ERROR_FILE_NOT_FOUND;
+    return GetFileAttributesW(Utf8ToWide(name).c_str()) != INVALID_FILE_ATTRIBUTES;
 }
 
 void RemoveIllegalChars(std::string& str) {
@@ -37,8 +49,7 @@ std::string GetSafeFilenameBase(std::string windowTitle) {
 
     std::string path = CppShot::getSaveDirectory();
 
-    // CreateDirectory with wide string
-    CreateDirectoryA(path.c_str(), NULL);
+    CreateDirectoryW(Utf8ToWide(path).c_str(), NULL);
 
     std::stringstream pathbuild;
     std::string fileNameBase;
