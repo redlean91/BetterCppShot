@@ -9,6 +9,7 @@
 class CompositeScreenshot : public Screenshot {
 	Gdiplus::Rect m_crop;
 	RECT m_captureRect;
+	bool m_noCrop = false;
 
 	void init(const Screenshot& white, const Screenshot& black);
 	void differentiateAlpha(Gdiplus::Bitmap* whiteShot, Gdiplus::Bitmap* blackShot);
@@ -18,4 +19,5 @@ public:
 	Gdiplus::Rect getCrop();
 	CompositeScreenshot(const Screenshot& whiteShot, const Screenshot& blackShot);
 	CompositeScreenshot(const Screenshot& whiteShot, const Screenshot& blackShot, Gdiplus::Rect crop);
+	CompositeScreenshot(const Screenshot& whiteShot, const Screenshot& blackShot, bool noCrop);
 };

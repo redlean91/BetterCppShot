@@ -1,5 +1,5 @@
 #include "Screenshot.h"
-#include "..\Utils.h"
+#include "../Utils.h"
 #include <windows.h>
 
 Screenshot::Screenshot() {}
@@ -36,6 +36,26 @@ void Screenshot::capture(HWND window) {
 
 RECT Screenshot::createRect() {
     return m_captureRect = CppShot::getCaptureRect(m_window);
+}
+
+void Screenshot::captureRect(RECT rect) {
+    delete m_image;
+    m_captureRect = rect;
+
+    int width  = rect.right  - rect.left;
+    int height = rect.bottom - rect.top;
+
+    HDC hdc    = GetDC(HWND_DESKTOP);
+    HDC memdc  = CreateCompatibleDC(hdc);
+    HBITMAP hbitmap = CreateCompatibleBitmap(hdc, width, height);
+
+    SelectObject(memdc, hbitmap);
+    BitBlt(memdc, 0, 0, width, height, hdc, rect.left, rect.top, SRCCOPY);
+
+    DeleteDC(memdc);
+    ReleaseDC(HWND_DESKTOP, hdc);
+
+    m_image = new Gdiplus::Bitmap(hbitmap, NULL);
 }
 
 void Screenshot::save(const std::string& path) {

@@ -1,5 +1,5 @@
 #include "Application.h"
-#include "..\Utils.h"
+#include "../Utils.h"
 
 Application& Application::get() {
     static Application instance;
