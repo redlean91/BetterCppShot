@@ -2,8 +2,6 @@
 #include <commctrl.h>
 #include <tchar.h>
 #include <gdiplus.h>
-#include <exdisp.h>
-#include <shldisp.h>
 #include <sstream>
 #include <iostream>
 #include <string>
@@ -123,30 +121,12 @@ static void SetWallpaper(const std::wstring& path) {
     Sleep(300);
 }
 
-// minimize all windows using COM IShellDispatch, if doesn't work then fall back to WM_COMMAND 419
-
-// using the COM method (thanks gemini for the snippet)
+// since COM doesn't work on MingW/TDM-GCC toolchain, let's try the plain Win32 way
 static void ShellMinimizeAll(bool minimize) {
-    HRESULT init = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-
-    IShellDispatch* pShell = nullptr;
-    if (SUCCEEDED(CoCreateInstance(CLSID_Shell, NULL, CLSCTX_INPROC_SERVER, IID_IShellDispatch, (void**)&pShell)) && pShell) {
-        if (minimize)
-            pShell->MinimizeAll();
-        else
-            pShell->UndoMinimizeALL();
-        pShell->Release();
-    }
-
-    if (SUCCEEDED(init)) CoUninitialize();
-
-    // FALLBACK: tell the tray to (un)minimize all windows directly.
-    // 419 = "Show the desktop / minimize all", 416 = "Undo minimize all".
     HWND tray = FindWindowA("Shell_TrayWnd", NULL);
     if (tray) {
         DWORD_PTR result = 0;
-        SendMessageTimeoutA(tray, WM_COMMAND, (WPARAM)(minimize ? 419 : 416), 0,
-                            SMTO_ABORTIFHUNG, 1000, &result);
+        SendMessageTimeoutA(tray, WM_COMMAND, (WPARAM)(minimize ? 419 : 416), 0, SMTO_ABORTIFHUNG, 1000, &result);
     }
 }
 
