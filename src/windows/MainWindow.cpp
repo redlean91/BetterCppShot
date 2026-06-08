@@ -38,15 +38,15 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
     UINT mod3 = hotkey3.first, vk3 = hotkey3.second;
 
     std::string hotkey_b1      = CppShot::HotkeyToString(mod1, vk1);
-    std::string hotkey_b1_text = "_b1:             " + hotkey_b1;
+    std::string hotkey_b1_text =    "_b1:           " + hotkey_b1;
     this->addLabel(hotkey_b1_text.c_str(), 10, 150, 200, 20);
 
     std::string hotkey_b1_b2      = CppShot::HotkeyToString(mod2, vk2);
-    std::string hotkey_b1_b2_text = "_b1 + _b2:   " + hotkey_b1_b2;
+    std::string hotkey_b1_b2_text = "_b1 + _b2: " + hotkey_b1_b2;
     this->addLabel(hotkey_b1_b2_text.c_str(), 10, 170, 200, 20);
 
     std::string hotkey_desk      = CppShot::HotkeyToString(mod3, vk3);
-    std::string hotkey_desk_text = "Desktop:       " + hotkey_desk;
+    std::string hotkey_desk_text =  "Desktop:   " + hotkey_desk;
     this->addLabel(hotkey_desk_text.c_str(), 10, 190, 200, 20);
 }
 

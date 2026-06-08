@@ -7,7 +7,7 @@ Application& Application::get() {
 }
 
 Application::Application() {
-    m_saveDirectory = CppShot::getRegistry("Path", "C:\\test\\");
+    m_saveDirectory = CppShot::getRegistry("Path", "C:\\Assets\\");
 }
 
 std::string Application::getSaveDirectory() const {

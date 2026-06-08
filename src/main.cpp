@@ -199,11 +199,11 @@ void CaptureDesktopTransparent() {
         return;
     }
 
-    auto base = GetSafeFilenameBase("Desktop");
+    auto base = GetSafeFilenameBase("DesktopIcons");
 
     try {
         CompositeScreenshot transparentImage(whiteShot, blackShot, true /* noCrop */);
-        transparentImage.save(base + "_desktop.png");
+        transparentImage.save(base + "_b1.png");
     } catch (std::runtime_error& e) {
         MessageBoxA(NULL, "An error occured while compositing the desktop screenshot.", "BetterCppShot Error", MB_OK | MB_ICONSTOP);
     }
