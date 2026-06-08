@@ -138,7 +138,7 @@ void MainWindow::onOpenAbout() {
         10, 70, 230, 20,
         hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("STATIC", "Edited by Redlean",
+    CreateWindowA("STATIC", "Edited by: Redlean, mrrpmeowfurry",
         WS_CHILD | WS_VISIBLE | SS_CENTER,
         10, 110, 230, 20,
         hDlg, NULL, GetModuleHandle(NULL), NULL);
