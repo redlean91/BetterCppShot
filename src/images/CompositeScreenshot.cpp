@@ -1,5 +1,5 @@
 #include "CompositeScreenshot.h"
-#include "..\Utils.h"
+#include "../Utils.h"
 
 #include <stdexcept>
 #include <cstring>
@@ -18,7 +18,7 @@ void CompositeScreenshot::init(const Screenshot& white, const Screenshot& black)
     m_captureRect = white.getCaptureRect();
 
 	differentiateAlpha(whiteShot, blackShot);
-	cropImage();
+	if (!m_noCrop) cropImage();
 }
 
 CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screenshot& black) : Screenshot() {
@@ -27,6 +27,11 @@ CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screensh
 
 CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screenshot& black, Gdiplus::Rect crop) : Screenshot() {
     m_crop = crop;
+    this->init(white, black);
+}
+
+CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screenshot& black, bool noCrop) : Screenshot() {
+    m_noCrop = noCrop;
     this->init(white, black);
 }
 
@@ -46,7 +51,7 @@ void CompositeScreenshot::differentiateAlpha(Gdiplus::Bitmap* whiteShot, Gdiplus
     blackShot->LockBits(&rect1, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &blackBitmapData);
     const BYTE* blackPixels = (BYTE*) blackBitmapData.Scan0;
 
-    bool isOnlyOneMonitorConnected = monitorRects.size() == 1;
+    bool isOnlyOneMonitorConnected = m_noCrop || monitorRects.size() == 1;
 
     auto width = whiteShot->GetWidth();
     auto height = whiteShot->GetHeight();

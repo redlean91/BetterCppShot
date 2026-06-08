@@ -19,6 +19,7 @@ public:
 	Screenshot(HWND window);
 	~Screenshot();
 	void capture(HWND window);
+	void captureRect(RECT rect);
 	void save(const std::string &path);
 	bool isCaptured();
 	Gdiplus::Bitmap *getBitmap() const;

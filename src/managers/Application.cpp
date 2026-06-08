@@ -1,5 +1,5 @@
 #include "Application.h"
-#include "..\Utils.h"
+#include "../Utils.h"
 
 Application& Application::get() {
     static Application instance;
@@ -7,7 +7,7 @@ Application& Application::get() {
 }
 
 Application::Application() {
-    m_saveDirectory = CppShot::getRegistry("Path", "C:\\test\\");
+    m_saveDirectory = CppShot::getRegistry("Path", "C:\\Assets\\");
 }
 
 std::string Application::getSaveDirectory() const {
