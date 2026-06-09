@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            tdm_installer: tdm64-gcc-10.3.0.exe
+            tdm_url: https://github.com/jmeubank/tdm-gcc/releases/download/v10.3.0-tdm-1/tdm64-gcc-10.3.0.exe
+            tdm_bin: C:\TDM-GCC-64\bin
+          - arch: x86
+            tdm_installer: tdm-gcc-10.3.0.exe
+            tdm_url: https://github.com/jmeubank/tdm-gcc/releases/download/v10.3.0-tdm-1/tdm-gcc-10.3.0.exe
+            tdm_bin: C:\TDM-GCC-32\bin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install TDM-GCC (${{ matrix.arch }})
+        run: |
+          Invoke-WebRequest -Uri "${{ matrix.tdm_url }}" -OutFile "${{ matrix.tdm_installer }}"
+          Start-Process -FilePath .\${{ matrix.tdm_installer }} -ArgumentList "/S" -Wait
+          echo "${{ matrix.tdm_bin }}" >> $env:GITHUB_PATH
+        shell: pwsh
+
+      - name: Configure CMake (${{ matrix.arch }})
+        run: cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -B build .
+
+      - name: Build (${{ matrix.arch }})
+        run: cmake --build build
+
+      - name: Upload artifact (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: BetterCppShot-${{ matrix.arch }}-${{ github.sha }}
+          path: build/BetterCppShot.exe
+          if-no-files-found: error
