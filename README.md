@@ -18,9 +18,9 @@ The build environment uses CMake.
 This is currently the latest compiler I've been able to find that supports Windows 98 and 2000. Note that this compiler doesn't support features beyond C++14. Available for download [here](https://sourceforge.net/projects/tdm-gcc/files/TDM-GCC%20Installer/).
 
 ## Compiling
-```
-mkdir build
-cd build
-cmake -G "MinGW Makefiles" ..
-mingw32-make
-```
+I have included 2 premade scripts to compile:
+
+- **build64.bat**
+- **build32.bat**
+
+You will need to create a **.env** file, you can use the **.envExample** as a template, but replace it with your actual TDM-GCC paths.
