@@ -1,0 +1,6 @@
+
+# Path to your 32 Bit installation of TDM GCC
+GCC32=C:/TDM-GCC-32
+
+# Path to your 64 bit installation of TDM GCC
+GCC64=C:/TDM-GCC-64

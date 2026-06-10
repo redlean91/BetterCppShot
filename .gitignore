@@ -15,6 +15,9 @@ Thumbs.db
 Desktop.ini
 
 # build from shitty stuff
-build/
+build32/
+build64/
 
 changelog.txt
+
+.env
