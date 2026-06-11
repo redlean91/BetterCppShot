@@ -321,25 +321,34 @@ struct KeyCapture {
 
 static KeyCapture g_cap1, g_cap2, g_cap3;
 
-static LRESULT CALLBACK HotkeySubclassProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR id, DWORD_PTR data) {
+static WNDPROC g_oldProc1 = NULL, g_oldProc2 = NULL, g_oldProc3 = NULL;
+
+static LRESULT captureHotkeyMsg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, WNDPROC oldProc, KeyCapture* cap) {
     if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) {
         UINT vk = (UINT)wParam;
         if (vk == VK_CONTROL || vk == VK_SHIFT || vk == VK_MENU || vk == VK_LWIN || vk == VK_RWIN)
             return 0;
-
         UINT mod = 0;
         if (GetKeyState(VK_CONTROL) & 0x8000) mod |= MOD_CONTROL;
         if (GetKeyState(VK_SHIFT)   & 0x8000) mod |= MOD_SHIFT;
         if (GetKeyState(VK_MENU)    & 0x8000) mod |= MOD_ALT;
         if ((GetKeyState(VK_LWIN) | GetKeyState(VK_RWIN)) & 0x8000) mod |= MOD_WIN;
-
-        KeyCapture* cap = (KeyCapture*)data;
         cap->mod = mod;
         cap->vk  = vk;
         SetWindowTextA(hWnd, CppShot::HotkeyToString(mod, vk).c_str());
         return 0;
     }
-    return DefSubclassProc(hWnd, msg, wParam, lParam);
+    return CallWindowProcA(oldProc, hWnd, msg, wParam, lParam);
+}
+
+static LRESULT CALLBACK HotkeySubclassProc1(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    return captureHotkeyMsg(hWnd, msg, wParam, lParam, g_oldProc1, &g_cap1);
+}
+static LRESULT CALLBACK HotkeySubclassProc2(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    return captureHotkeyMsg(hWnd, msg, wParam, lParam, g_oldProc2, &g_cap2);
+}
+static LRESULT CALLBACK HotkeySubclassProc3(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    return captureHotkeyMsg(hWnd, msg, wParam, lParam, g_oldProc3, &g_cap3);
 }
 
 static bool g_dlgClosed = false;
@@ -427,9 +436,9 @@ void MainWindow::onChangeKeybinds() {
     CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 60,  258, 80, 28, hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
     CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   155, 258, 80, 28, hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
 
-    SetWindowSubclass(hPreview1, HotkeySubclassProc, 1, (DWORD_PTR)&g_cap1);
-    SetWindowSubclass(hPreview2, HotkeySubclassProc, 2, (DWORD_PTR)&g_cap2);
-    SetWindowSubclass(hPreview3, HotkeySubclassProc, 3, (DWORD_PTR)&g_cap3);
+    g_oldProc1 = (WNDPROC)SetWindowLongPtrA(hPreview1, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc1);
+    g_oldProc2 = (WNDPROC)SetWindowLongPtrA(hPreview2, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc2);
+    g_oldProc3 = (WNDPROC)SetWindowLongPtrA(hPreview3, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc3);
 
     // Center over parent
     RECT rcParent, rcDlg;
@@ -451,9 +460,6 @@ void MainWindow::onChangeKeybinds() {
             break;
     }
 
-    RemoveWindowSubclass(hPreview1, HotkeySubclassProc, 1);
-    RemoveWindowSubclass(hPreview2, HotkeySubclassProc, 2);
-    RemoveWindowSubclass(hPreview3, HotkeySubclassProc, 3);
     UnregisterClassA("HotkeyDlg", GetModuleHandle(NULL));
 };
 

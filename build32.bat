@@ -10,7 +10,8 @@ cmake -B build32 ^
   -G "MinGW Makefiles" ^
   -DCMAKE_C_COMPILER="%GCC32%/bin/gcc.exe" ^
   -DCMAKE_CXX_COMPILER="%GCC32%/bin/g++.exe" ^
-  -DCMAKE_RC_COMPILER="%GCC32%/bin/windres.exe"
+  -DCMAKE_RC_COMPILER="%GCC32%/bin/windres.exe" ^
+  -DLINK_UNICOWS=1
 
 cmake --build build32
 
