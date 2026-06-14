@@ -9,8 +9,8 @@ IF(MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MANIFEST:NO /SUBSYSTEM:WINDOWS,4.00")
 ENDIF()
 
-# 0x0400 = Windows 95/NT4, IE 0x0300 = IE 3.0 (lowest available)
-add_definitions(-D_WIN32_WINNT=0x0501 -D_WIN32_IE=0x0300 -DWINVER=0x0501)
+# 0x0410 = Windows 98, IE 0x0500 = IE 5.0 (ships with Win98 SE)
+add_definitions(-D_WIN32_WINNT=0x0410 -D_WIN32_WINDOWS=0x0410 -D_WIN32_IE=0x0500 -DWINVER=0x0410)
 # Note: UNICODE is intentionally omitted — Win95 has very poor Unicode support.
 # Use ANSI API calls (e.g. MessageBoxA) where possible for 95 compat.
 
@@ -48,6 +48,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         target_link_options(${PROJECT_NAME} PRIVATE -mwindows)
     ENDIF()
 endif()
+
+IF(NOT MSVC)
+    target_link_options(${PROJECT_NAME} PRIVATE
+        -Wl,--major-subsystem-version,4,--minor-subsystem-version,10)
+ENDIF()
 
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 target_include_directories(${PROJECT_NAME} PRIVATE res)

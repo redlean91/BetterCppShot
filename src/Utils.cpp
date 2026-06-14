@@ -7,6 +7,13 @@
 #include <string>
 #include <windows.h>
 
+#ifndef VK_OEM_PLUS
+#define VK_OEM_PLUS   0xBB
+#define VK_OEM_MINUS  0xBD
+#define VK_OEM_COMMA  0xBC
+#define VK_OEM_PERIOD 0xBE
+#endif
+
 namespace CppShot {
 
 std::string getSaveDirectory() {
