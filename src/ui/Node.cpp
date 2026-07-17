@@ -21,7 +21,7 @@ Node::Node(const char *className, DWORD dwStyle, Window *parent)
         100,
         parent->getWindow(),
         (HMENU)(INT_PTR)m_id,
-        (HINSTANCE)GetWindowLong(parent->getWindow(), GWLP_HINSTANCE),
+        (HINSTANCE)GetWindowLongPtrA(parent->getWindow(), GWLP_HINSTANCE),
         NULL);
 
     if (!m_window)
