@@ -9,25 +9,25 @@
 #include <string>
 
 MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", "BCppShot", 0, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX) {
-    setSize(230, 250);
+    setSize(330, 250);
     this->addButton()
         .setCallback([this]() { onOpenExplorer(); })
         .setPosition(10, 10)
-        .setSize(200, 30)
+        .setSize(300, 30)
         .setTitle("Open Screenshots Folder");
     this->addButton()
         .setCallback([this]() { onOpenSettings(); })
         .setPosition(10, 50)
-        .setSize(200, 30)
+        .setSize(300, 30)
         .setTitle("Settings");
     this->addButton()
         .setCallback([this]() { onOpenAbout(); })
         .setPosition(10, 90)
-        .setSize(200, 30)
+        .setSize(300, 30)
         .setTitle("About");
 
     // Keybinds
-    this->addLabel("Active keybinds:", 57, 130, 200, 20);
+    this->addLabel("Active keybinds:", 92, 125, 200, 20);
 
     std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,            0x42);
     std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_ALT,                0x53);
@@ -38,15 +38,15 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
     UINT mod3 = hotkey3.first, vk3 = hotkey3.second;
 
     std::string hotkey_b1      = CppShot::HotkeyToString(mod1, vk1);
-    std::string hotkey_b1_text =    "_b1:           " + hotkey_b1;
+    std::string hotkey_b1_text =    "Active: " + hotkey_b1;
     this->addLabel(hotkey_b1_text.c_str(), 10, 150, 200, 20);
 
     std::string hotkey_b1_b2      = CppShot::HotkeyToString(mod2, vk2);
-    std::string hotkey_b1_b2_text = "_b1 + _b2: " + hotkey_b1_b2;
-    this->addLabel(hotkey_b1_b2_text.c_str(), 10, 170, 200, 20);
+    std::string hotkey_b1_b2_text = "Active and inactive: " + hotkey_b1_b2;
+    this->addLabel(hotkey_b1_b2_text.c_str(), 10, 170, 300, 20);
 
     std::string hotkey_desk      = CppShot::HotkeyToString(mod3, vk3);
-    std::string hotkey_desk_text =  "Desktop:   " + hotkey_desk;
+    std::string hotkey_desk_text =  "Desktop: " + hotkey_desk;
     this->addLabel(hotkey_desk_text.c_str(), 10, 190, 200, 20);
 }
 
@@ -84,6 +84,9 @@ static LRESULT CALLBACK AboutWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
             if (LOWORD(wParam) == 1) { // OK button
                 DestroyWindow(hWnd);
             }
+            else if (LOWORD(wParam) == 2) {
+                ShellExecuteA(hWnd, "open", "https://github.com/redlean91/BetterCppShot", NULL, NULL, SW_SHOWNORMAL);
+            }
             return 0;
 
         case WM_CLOSE:
@@ -116,11 +119,31 @@ void MainWindow::onOpenAbout() {
         "About BetterCppShot",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        250, 210,
+        250, 260,
         this->getWindow(),
         NULL,
         GetModuleHandle(NULL),
         NULL
+    );
+
+    // Center over parent
+    RECT rcParent, rcDlg;
+    GetWindowRect(this->getWindow(), &rcParent);
+    GetWindowRect(hDlg, &rcDlg);
+
+    int x = rcParent.left +
+        (rcParent.right - rcParent.left - (rcDlg.right - rcDlg.left)) / 2;
+    int y = rcParent.top +
+        (rcParent.bottom - rcParent.top - (rcDlg.bottom - rcDlg.top)) / 2;
+
+    SetWindowPos(
+        hDlg,
+        NULL,
+        x,
+        y,
+        0,
+        0,
+        SWP_NOSIZE | SWP_NOZORDER
     );
 
     CreateWindowA("STATIC", "BetterCppShot",
@@ -145,10 +168,18 @@ void MainWindow::onOpenAbout() {
 
     CreateWindowA("BUTTON", "OK",
         WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        85, 140, 80, 30,
+        85, 190, 80, 30,
         hDlg, (HMENU)1, GetModuleHandle(NULL), NULL);
 
         ShowWindow(hDlg, SW_SHOW);
+
+    CreateWindowA("BUTTON", "GitHub",
+        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        85, 150, 80, 30,
+        hDlg, (HMENU)2, GetModuleHandle(NULL), NULL);
+
+        ShowWindow(hDlg, SW_SHOW);
+
     UpdateWindow(hDlg);
 
     EnableWindow(this->getWindow(), FALSE);
