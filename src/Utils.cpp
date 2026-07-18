@@ -341,6 +341,25 @@ std::pair<UINT, UINT> loadHotkey(const char* name, UINT defaultModifiers, UINT d
     return {modifiers, vk};
 }
 
+HFONT createScaledFont(HWND window, int pointSize) {
+    int dpi = getDPIForWindow(window);
+    int height = -MulDiv(pointSize, dpi, 72);
+    return CreateFontA(
+        height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI"
+    );
+}
+
+static BOOL CALLBACK SetChildFontProc(HWND hwnd, LPARAM lParam) {
+    SendMessageA(hwnd, WM_SETFONT, (WPARAM)lParam, TRUE);
+    return TRUE;
+}
+
+void applyFontToChildren(HWND parent, HFONT font) {
+    EnumChildWindows(parent, SetChildFontProc, (LPARAM)font);
+}
+
 // Gdiplus status string helper
 const char* statusString(const Gdiplus::Status status) {
     switch (status) {

@@ -8,7 +8,7 @@
 #include <shlobj.h>
 #include <string>
 
-MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", "BCppShot", 0, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX) {
+MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", "BetterCppShot", 0, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX) {
     setSize(330, 250);
     this->addButton()
         .setCallback([this]() { onOpenExplorer(); })
@@ -27,7 +27,7 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
         .setTitle("About");
 
     // Keybinds
-    this->addLabel("Active keybinds:", 92, 125, 200, 20);
+    this->addLabel("Active keybinds:", 105, 125, 200, 20);
 
     std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,            0x42);
     std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_ALT,                0x53);
@@ -98,9 +98,10 @@ static LRESULT CALLBACK AboutWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
 void MainWindow::onOpenAbout() {
     const char* className = "AboutWnd";
+    double scale = this->getScaleFactor();
+    auto S = [scale](int v) { return (int)(v * scale); };
 
     HINSTANCE instance = GetModuleHandle(NULL);
-
     HICON hIcon = (HICON) LoadImage(instance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED);
 
     WNDCLASSA wc = {};
@@ -110,7 +111,6 @@ void MainWindow::onOpenAbout() {
     wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
     wc.lpszClassName = className;
     wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
-
     RegisterClassA(&wc);
 
     HWND hDlg = CreateWindowExA(
@@ -119,7 +119,7 @@ void MainWindow::onOpenAbout() {
         "About BetterCppShot",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        250, 260,
+        S(250), S(260),
         this->getWindow(),
         NULL,
         GetModuleHandle(NULL),
@@ -130,76 +130,61 @@ void MainWindow::onOpenAbout() {
     RECT rcParent, rcDlg;
     GetWindowRect(this->getWindow(), &rcParent);
     GetWindowRect(hDlg, &rcDlg);
-
-    int x = rcParent.left +
-        (rcParent.right - rcParent.left - (rcDlg.right - rcDlg.left)) / 2;
-    int y = rcParent.top +
-        (rcParent.bottom - rcParent.top - (rcDlg.bottom - rcDlg.top)) / 2;
-
-    SetWindowPos(
-        hDlg,
-        NULL,
-        x,
-        y,
-        0,
-        0,
-        SWP_NOSIZE | SWP_NOZORDER
-    );
+    int x = rcParent.left + (rcParent.right - rcParent.left - (rcDlg.right - rcDlg.left)) / 2;
+    int y = rcParent.top + (rcParent.bottom - rcParent.top - (rcDlg.bottom - rcDlg.top)) / 2;
+    SetWindowPos(hDlg, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 
     CreateWindowA("STATIC", "BetterCppShot",
         WS_CHILD | WS_VISIBLE | SS_CENTER,
-        10, 10, 230, 20,
+        S(10), S(10), S(230), S(20),
         hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     CreateWindowA("STATIC", PROJECT_VERSION,
         WS_CHILD | WS_VISIBLE | SS_CENTER,
-        10, 40, 230, 20,
+        S(10), S(40), S(230), S(20),
         hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     CreateWindowA("STATIC", "CppShot by Cvolton",
         WS_CHILD | WS_VISIBLE | SS_CENTER,
-        10, 70, 230, 20,
+        S(10), S(70), S(230), S(20),
         hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     CreateWindowA("STATIC", "Edited by: Redlean, mrrpmeowfurry",
         WS_CHILD | WS_VISIBLE | SS_CENTER,
-        10, 110, 230, 20,
+        S(10), S(110), S(230), S(20),
         hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     CreateWindowA("BUTTON", "OK",
         WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        85, 190, 80, 30,
+        S(85), S(190), S(80), S(30),
         hDlg, (HMENU)1, GetModuleHandle(NULL), NULL);
-
-        ShowWindow(hDlg, SW_SHOW);
 
     CreateWindowA("BUTTON", "GitHub",
         WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        85, 150, 80, 30,
+        S(85), S(150), S(80), S(30),
         hDlg, (HMENU)2, GetModuleHandle(NULL), NULL);
 
-        ShowWindow(hDlg, SW_SHOW);
+    HFONT font = CppShot::createScaledFont(hDlg);
+    CppShot::applyFontToChildren(hDlg, font);
 
+    ShowWindow(hDlg, SW_SHOW);
     UpdateWindow(hDlg);
 
     EnableWindow(this->getWindow(), FALSE);
 
     MSG msg = {};
     bool closed = false;
-
     while (!closed && GetMessageA(&msg, NULL, 0, 0)) {
         if (!IsWindow(hDlg)) break;
-
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
-
         if (!IsWindow(hDlg)) closed = true;
     }
 
     EnableWindow(this->getWindow(), TRUE);
     SetActiveWindow(this->getWindow());
+    DeleteObject(font);
 }
-
 
 // settings stuff
 
@@ -247,9 +232,10 @@ static LRESULT CALLBACK SettingsWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPAR
 
 void MainWindow::onOpenSettings() {
     const char* className = "SettingsWnd";
+    double scale = this->getScaleFactor();
+    auto S = [scale](int v) { return (int)(v * scale); };
 
     HINSTANCE instance = GetModuleHandle(NULL);
-
     HICON hIcon = (HICON) LoadImage(instance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED);
 
     WNDCLASSA wc = {};
@@ -259,61 +245,30 @@ void MainWindow::onOpenSettings() {
     wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
     wc.lpszClassName = className;
     wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
-
     RegisterClassA(&wc);
 
     HWND hDlg = CreateWindowExA(
-        WS_EX_DLGMODALFRAME,
-        className,
-        "Settings",
+        WS_EX_DLGMODALFRAME, className, "Settings",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        230, 220,
-        this->getWindow(),
-        NULL,
-        GetModuleHandle(NULL),
-        this
+        S(230), S(220),
+        this->getWindow(), NULL, GetModuleHandle(NULL), this
     );
 
-    CreateWindowA(
-        "BUTTON", "Change Screenshot Folder",
-        WS_CHILD | WS_VISIBLE,
-        10, 10, 200, 30,
-        hDlg,
-        (HMENU)203, // ID
-        GetModuleHandle(NULL),
-        NULL
-    );
+    CreateWindowA("BUTTON", "Change Screenshot Folder", WS_CHILD | WS_VISIBLE,
+        S(10), S(10), S(200), S(30), hDlg, (HMENU)203, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA(
-        "BUTTON", "Change Keybinds",
-        WS_CHILD | WS_VISIBLE,
-        10, 50, 200, 30,
-        hDlg,
-        (HMENU)204, // ID
-        GetModuleHandle(NULL),
-        NULL
-    );
+    CreateWindowA("BUTTON", "Change Keybinds", WS_CHILD | WS_VISIBLE,
+        S(10), S(50), S(200), S(30), hDlg, (HMENU)204, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA(
-        "BUTTON", "Delay",
-        WS_CHILD | WS_VISIBLE,
-        10, 90, 200, 30,
-        hDlg,
-        (HMENU)205, // ID
-        GetModuleHandle(NULL),
-        NULL
-    );
+    CreateWindowA("BUTTON", "Delay", WS_CHILD | WS_VISIBLE,
+        S(10), S(90), S(200), S(30), hDlg, (HMENU)205, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA(
-        "BUTTON", "Close",
-        WS_CHILD | WS_VISIBLE,
-        75, 150, 70, 30,
-        hDlg,
-        (HMENU)202, // ID
-        GetModuleHandle(NULL),
-        NULL
-    );
+    CreateWindowA("BUTTON", "Close", WS_CHILD | WS_VISIBLE,
+        S(75), S(150), S(70), S(30), hDlg, (HMENU)202, GetModuleHandle(NULL), NULL);
+
+    HFONT font = CppShot::createScaledFont(hDlg);
+    CppShot::applyFontToChildren(hDlg, font);
 
     // Center over parent
     RECT rcParent, rcDlg;
@@ -327,20 +282,17 @@ void MainWindow::onOpenSettings() {
     UpdateWindow(hDlg);
 
     EnableWindow(this->getWindow(), FALSE);
-
     g_settingsClosed = false;
     MSG msg = {};
-
     while (!g_settingsClosed && GetMessageA(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
-
-        if (!IsWindow(hDlg))
-            break;
+        if (!IsWindow(hDlg)) break;
     }
 
     EnableWindow(this->getWindow(), TRUE);
     SetActiveWindow(this->getWindow());
+    DeleteObject(font);
 }
 
 // ── Hotkey dialog helpers ──────────────────────────────────────────────
@@ -409,6 +361,9 @@ static LRESULT CALLBACK HotkeyDlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 }
 
 void MainWindow::onChangeKeybinds() {
+    double scale = this->getScaleFactor();
+    auto S = [scale](int v) { return (int)(v * scale); };
+
     std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,           0x42);
     std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_ALT,               0x53);
     std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT, 0x44);
@@ -418,7 +373,6 @@ void MainWindow::onChangeKeybinds() {
     g_cap3 = { hotkey3.first, hotkey3.second, NULL };
 
     HINSTANCE instance = GetModuleHandle(NULL);
-
     HICON hIcon = (HICON) LoadImage(instance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED);
 
     WNDCLASSA wc = {};
@@ -434,42 +388,45 @@ void MainWindow::onChangeKeybinds() {
         WS_EX_DLGMODALFRAME,
         "HotkeyDlg", "Change Keybinds",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
-        CW_USEDEFAULT, CW_USEDEFAULT, 310, 335,
+        CW_USEDEFAULT, CW_USEDEFAULT, S(310), S(335),
         this->getWindow(), NULL, GetModuleHandle(NULL), NULL
     );
 
-    CreateWindowA("STATIC", "_b1",        WS_CHILD | WS_VISIBLE, 10,  55, 280, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
-    CreateWindowA("STATIC", "_b1 + _b2",  WS_CHILD | WS_VISIBLE, 10, 115, 280, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
-    CreateWindowA("STATIC", "Desktop",    WS_CHILD | WS_VISIBLE, 10, 175, 280, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "_b1",        WS_CHILD | WS_VISIBLE, S(10), S(55),  S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "_b1 + _b2",  WS_CHILD | WS_VISIBLE, S(10), S(115), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "Desktop",    WS_CHILD | WS_VISIBLE, S(10), S(175), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     HWND hPreview1 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap1.mod, g_cap1.vk).c_str(),
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
-        10, 75, 280, 25, hDlg, (HMENU)101, GetModuleHandle(NULL), NULL);
+        S(10), S(75), S(280), S(25), hDlg, (HMENU)101, GetModuleHandle(NULL), NULL);
 
     HWND hPreview2 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap2.mod, g_cap2.vk).c_str(),
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
-        10, 135, 280, 25, hDlg, (HMENU)102, GetModuleHandle(NULL), NULL);
+        S(10), S(135), S(280), S(25), hDlg, (HMENU)102, GetModuleHandle(NULL), NULL);
 
     HWND hPreview3 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap3.mod, g_cap3.vk).c_str(),
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
-        10, 195, 280, 25, hDlg, (HMENU)105, GetModuleHandle(NULL), NULL);
+        S(10), S(195), S(280), S(25), hDlg, (HMENU)105, GetModuleHandle(NULL), NULL);
 
     g_cap1.hPreview = hPreview1;
     g_cap2.hPreview = hPreview2;
     g_cap3.hPreview = hPreview3;
 
     CreateWindowA("STATIC", "Click a box then press your desired key combo.", WS_CHILD | WS_VISIBLE | SS_CENTER,
-        10, 15, 280, 40, hDlg, NULL, GetModuleHandle(NULL), NULL);
+        S(10), S(15), S(280), S(40), hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     CreateWindowA("STATIC", "*A restart of the application is required.", WS_CHILD | WS_VISIBLE | SS_CENTER,
-        10, 230, 280, 20, hDlg, NULL, GetModuleHandle(NULL), NULL);
+        S(10), S(230), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 60,  258, 80, 28, hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
-    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   155, 258, 80, 28, hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, S(60),  S(258), S(80), S(28), hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   S(155), S(258), S(80), S(28), hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
 
     g_oldProc1 = (WNDPROC)SetWindowLongPtrA(hPreview1, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc1);
     g_oldProc2 = (WNDPROC)SetWindowLongPtrA(hPreview2, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc2);
     g_oldProc3 = (WNDPROC)SetWindowLongPtrA(hPreview3, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc3);
+
+    HFONT font = CppShot::createScaledFont(hDlg);
+    CppShot::applyFontToChildren(hDlg, font);
 
     // Center over parent
     RECT rcParent, rcDlg;
@@ -491,9 +448,9 @@ void MainWindow::onChangeKeybinds() {
             break;
     }
 
+    DeleteObject(font);
     UnregisterClassA("HotkeyDlg", GetModuleHandle(NULL));
 };
-
 // delay
 
 struct Delay {
@@ -502,6 +459,7 @@ struct Delay {
 };
 
 static Delay new_delay;
+static HFONT g_delayFont = nullptr;
 
 static LRESULT CALLBACK DelayDlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -531,18 +489,18 @@ static LRESULT CALLBACK DelayDlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
             DestroyWindow(hWnd);
             return 0;
         case WM_DESTROY:
+            if (g_delayFont) { DeleteObject(g_delayFont); g_delayFont = nullptr; }
             return 0;
     }
     return DefWindowProcA(hWnd, msg, wParam, lParam);
 };
 
 void MainWindow::onChangeDelay() {
-    // Loading the delay
+    double scale = this->getScaleFactor();
+    auto S = [scale](int v) { return (int)(v * scale); };
+
     int m_delay = CppShot::getRegistryInt("Delay", 0);
-
     new_delay.delay = m_delay;
-
-    // delay in string
     std::string delay_str = std::to_string(new_delay.delay);
 
     WNDCLASSA wc = {};
@@ -558,7 +516,7 @@ void MainWindow::onChangeDelay() {
         "DelayDlg",
         "Change Delay",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
-        CW_USEDEFAULT, CW_USEDEFAULT, 310, 180,
+        CW_USEDEFAULT, CW_USEDEFAULT, S(310), S(180),
         this->getWindow(), NULL, GetModuleHandle(NULL), NULL
     );
 
@@ -567,7 +525,7 @@ void MainWindow::onChangeDelay() {
         "EDIT",
         delay_str.c_str(),
         WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER,
-        50, 60, 200, 25,
+        S(50), S(60), S(200), S(25),
         hDlg,
         (HMENU)1001,
         GetModuleHandle(NULL),
@@ -575,10 +533,13 @@ void MainWindow::onChangeDelay() {
     );
 
     CreateWindowA("STATIC", "Click on the text box and write your delay in milliseconds.", WS_CHILD | WS_VISIBLE | SS_CENTER,
-        10, 10, 280, 40, hDlg, NULL, GetModuleHandle(NULL), NULL);
-    
-    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 60,  105, 80, 28, hDlg, (HMENU)303, GetModuleHandle(NULL), NULL);
-    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   155, 105, 80, 28, hDlg, (HMENU)304, GetModuleHandle(NULL), NULL);
+        S(10), S(10), S(280), S(40), hDlg, NULL, GetModuleHandle(NULL), NULL);
+
+    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, S(60),  S(105), S(80), S(28), hDlg, (HMENU)303, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   S(155), S(105), S(80), S(28), hDlg, (HMENU)304, GetModuleHandle(NULL), NULL);
+
+    g_delayFont = CppShot::createScaledFont(hDlg);
+    CppShot::applyFontToChildren(hDlg, g_delayFont);
 
     // Center over parent
     RECT rcParent, rcDlg;

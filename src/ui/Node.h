@@ -19,4 +19,5 @@ public:
     Node &forceResize();
     HWND getWindow();
     int getId() { return m_id; }
+    Node &setFont(HFONT font);
 };

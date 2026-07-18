@@ -21,6 +21,8 @@ namespace CppShot {
     BOOL CALLBACK getMonitorRectsCallback(HMONITOR unnamedParam1, HDC unnamedParam2, LPRECT unnamedParam3, LPARAM unnamedParam4);
     std::vector<RECT> getMonitorRects();
     unsigned int getDPIForWindow(HWND window);
+    HFONT createScaledFont(HWND window, int pointSize = 9);
+    void applyFontToChildren(HWND parent, HFONT font);
 
     inline unsigned __int64 currentTimestamp() {
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();

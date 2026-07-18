@@ -9,8 +9,9 @@ class Window
 protected:
     HWND m_window = nullptr;
     std::vector<Node *> m_children;
+    HFONT m_font = nullptr;
     virtual LRESULT handleMessage(UINT message, WPARAM wParam, LPARAM lParam);
-
+    
 public:
     Window(HBRUSH brush, const char *className, const char *title,
            DWORD dwExStyle = 0, DWORD dwStyle = WS_OVERLAPPEDWINDOW);
@@ -28,6 +29,7 @@ public:
 
     unsigned int getDPI();
     double getScaleFactor();
+    void updateFont();
 
     virtual ~Window();
 };

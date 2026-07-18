@@ -68,6 +68,8 @@ Window::Window(HBRUSH brush, const char* className, const char* title, DWORD dwE
     style &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
     SetWindowLongA(m_window, GWL_STYLE, style);
     SetWindowPos(m_window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+    updateFont();
 }
 
 LRESULT CALLBACK Window::windowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -91,12 +93,13 @@ HWND Window::getWindow() {
 }
 
 HWND Window::addLabel(const char* text, int x, int y, int width, int height) {
+    double scale = getScaleFactor();
     return CreateWindowExA(
         0,
         "STATIC",
         text,
         WS_CHILD | WS_VISIBLE,
-        x, y, width, height,
+        (int)(x * scale), (int)(y * scale), (int)(width * scale), (int)(height * scale),
         m_window,
         NULL,
         GetModuleHandle(NULL),
@@ -147,6 +150,7 @@ LRESULT Window::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         }
 
         case 0x02E0: // WM_DPICHANGED
+            updateFont();
             for (auto child : m_children) child->forceResize();
             break;
 
@@ -157,8 +161,25 @@ LRESULT Window::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     return 0;
 }
 
+void Window::updateFont() {
+    if (m_font) DeleteObject(m_font);
+
+    int dpi = getDPI();
+    int height = -MulDiv(9, dpi, 72); // 9pt, matches the default Segoe UI size at 96 DPI
+
+    m_font = CreateFontA(
+        height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI"
+    );
+
+    SendMessageA(m_window, WM_SETFONT, (WPARAM)m_font, TRUE);
+    for (auto child : m_children) child->setFont(m_font);
+}
+
 void Window::addChild(Node* child) {
     m_children.push_back(child);
+    if (m_font) child->setFont(m_font);
 }
 
 Button& Window::addButton() {
@@ -176,4 +197,5 @@ double Window::getScaleFactor() {
 
 Window::~Window() {
     for (auto child : m_children) delete child;
+    if (m_font) DeleteObject(m_font);
 }

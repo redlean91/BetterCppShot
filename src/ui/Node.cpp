@@ -37,6 +37,11 @@ Node::Node(const char *className, DWORD dwStyle, Window *parent)
     m_parent->addChild(this);
 }
 
+Node &Node::setFont(HFONT font) {
+    SendMessageA(m_window, WM_SETFONT, (WPARAM)font, TRUE);
+    return *this;
+}
+
 Node &Node::setPosition(int x, int y)
 {
     m_position = {x, y};
