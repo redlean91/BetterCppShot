@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <sys/stat.h>
+#include <cstdint>
 
 #include "resources.h"
 #include "Utils.h"
@@ -146,7 +147,8 @@ static void SetTaskbarVisible(bool visible) {
     }
 }
 
-static RECT GetPrimaryMonitorRect() {    HMONITOR hMon = MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY);
+static RECT GetPrimaryMonitorRect() {    
+    HMONITOR hMon = MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY);
     MONITORINFO mi = {};
     mi.cbSize = sizeof(mi);
     if (GetMonitorInfoA(hMon, &mi))
@@ -273,9 +275,55 @@ void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow& whiteWi
 
     auto base = GetSafeFilenameBase(windowTextStr);
 
+    // Detect OS version for shadow handling
+    OSVERSIONINFO osvi = {};
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    bool isVista = false;
+    bool shadowsWereDisabled = false;
+    
+    if (GetVersionEx(&osvi)) {
+        isVista = (osvi.dwMajorVersion == 6 && osvi.dwMinorVersion == 0);
+    }
+
     try {
         CompositeScreenshot transparentImage(shots.first, shots.second);
         transparentImage.save(base + "_b1.png");
+
+        // Disable shadows for mask capture on non-Vista systems to match AeroShotCRE behavior
+        if (!isVista) {
+            BOOL shadowEnabled = FALSE;
+            if (SystemParametersInfoA(0x1024, 0, &shadowEnabled, 0) && shadowEnabled) {  // 0x1024 = SPI_GETDROPSHADOW
+                SystemParametersInfoA(0x1025, 0, (PVOID)FALSE, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);  // 0x1025 = SPI_SETDROPSHADOW
+                shadowsWereDisabled = true;
+                Sleep(100);
+                
+                // Recapture screenshots without shadows for mask generation
+                blackWindow.hide();
+                whiteWindow.show();
+                Sleep(50);
+                whiteWindow.hide();
+                blackWindow.show();
+                Sleep(50);
+                shots.second.capture(foregroundWindow);
+                
+                blackWindow.hide();
+                whiteWindow.show();
+                Sleep(50);
+                shots.first.capture(foregroundWindow);
+                
+                blackWindow.hide();
+                whiteWindow.hide();
+            }
+        }
+
+        CompositeScreenshot blackOpaqueImage(shots.first, shots.second, transparentImage.getCrop(), true);
+        blackOpaqueImage.save(base + "_mask.png");
+
+        // Re-enable shadows if we disabled them
+        if (shadowsWereDisabled) {
+            SystemParametersInfoA(0x1025, 0, (PVOID)TRUE, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);  // 0x1025 = SPI_SETDROPSHADOW
+            Sleep(100);
+        }
 
         if (creShots.first.isCaptured() && creShots.second.isCaptured()) {
             CompositeScreenshot transparentInactiveImage(creShots.first, creShots.second, transparentImage.getCrop());
