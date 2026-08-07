@@ -325,35 +325,37 @@ void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow &whiteWi
         // Disable shadows for mask capture on all systems to match AeroShotCRE behavior
         if (captureMask)
         {
-            BOOL shadowEnabled = FALSE;
-            if (SystemParametersInfoA(0x1024, 0, &shadowEnabled, 0) && shadowEnabled)
-            {                                                                                         // 0x1024 = SPI_GETDROPSHADOW
-                SystemParametersInfoA(0x1025, 0, (PVOID)FALSE, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE); // 0x1025 = SPI_SETDROPSHADOW
-                shadowsWereDisabled = true;
-                Sleep(100);
+            if (!isVista)
+            {
+                BOOL shadowEnabled = FALSE;
+                if (SystemParametersInfoA(0x1024, 0, &shadowEnabled, 0) && shadowEnabled)
+                {                                                                                         // 0x1024 = SPI_GETDROPSHADOW
+                    SystemParametersInfoA(0x1025, 0, (PVOID)FALSE, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE); // 0x1025 = SPI_SETDROPSHADOW
+                    shadowsWereDisabled = true;
+                    Sleep(100);
 
-                // Recapture screenshots without shadows for mask generation
-                blackWindow.hide();
-                whiteWindow.show();
-                Sleep(50);
-                whiteWindow.hide();
-                blackWindow.show();
-                Sleep(50);
-                shots.second.capture(foregroundWindow);
+                    // Recapture screenshots without shadows for mask generation
+                    blackWindow.hide();
+                    whiteWindow.show();
+                    Sleep(50);
+                    whiteWindow.hide();
+                    blackWindow.show();
+                    Sleep(50);
+                    shots.second.capture(foregroundWindow);
 
-                blackWindow.hide();
-                whiteWindow.show();
-                Sleep(50);
-                shots.first.capture(foregroundWindow);
+                    blackWindow.hide();
+                    whiteWindow.show();
+                    Sleep(50);
+                    shots.first.capture(foregroundWindow);
 
-                blackWindow.hide();
-                whiteWindow.hide();
+                    blackWindow.hide();
+                    whiteWindow.hide();
+                }
             }
+
+            CompositeScreenshot blackOpaqueImage(shots.first, shots.second, transparentImage.getCrop(), true);
+            blackOpaqueImage.save(base + "_mask.png");
         }
-
-        CompositeScreenshot blackOpaqueImage(shots.first, shots.second, transparentImage.getCrop(), true);
-        blackOpaqueImage.save(base + "_mask.png");
-
         // Re-enable shadows if we disabled them
         if (shadowsWereDisabled)
         {
@@ -422,8 +424,6 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
         std::string hotkey_b1_b2 = CppShot::HotkeyToString(mod2, vk2);
         std::string hotkey_desk = CppShot::HotkeyToString(mod3, vk3);
 
-        bool captureMask = CppShot::getRegistryInt("CaptureMask", 0) != 0;
-
         std::string text_keybind1 = "Unable to register keybind: ";
         text_keybind1 += hotkey_b1;
 
@@ -460,12 +460,19 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
                 break;
             if (messages.message == WM_HOTKEY)
             {
-                if (messages.wParam == 1)
+                if (messages.wParam == 1) {
+                    // Getting the captureMask value again here to ensure it reflects the latest user preference
+                    bool captureMask = CppShot::getRegistryInt("CaptureMask", 0) != 0;
                     CaptureCompositeScreenshot(hThisInstance, whiteWindow, blackWindow, false, captureMask);
-                else if (messages.wParam == 2)
+                }
+                else if (messages.wParam == 2) {
+                    // Getting the captureMask value again here to ensure it reflects the latest user preference
+                    bool captureMask = CppShot::getRegistryInt("CaptureMask", 0) != 0;
                     CaptureCompositeScreenshot(hThisInstance, whiteWindow, blackWindow, true, captureMask);
-                else if (messages.wParam == 3)
+                }
+                else if (messages.wParam == 3) {
                     CaptureDesktopTransparent();
+                }
             }
             TranslateMessage(&messages);
             DispatchMessage(&messages);
