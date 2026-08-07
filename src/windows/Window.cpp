@@ -167,12 +167,18 @@ void Window::updateFont() {
     if (m_font) DeleteObject(m_font);
 
     int dpi = getDPI();
-    int height = -MulDiv(9, dpi, 72); // 9pt, matches the default Segoe UI size at 96 DPI
+    int height = -MulDiv(9, dpi, 72); // 9pt, matches the default UI font size at 96 DPI
+
+    NONCLIENTMETRICSA ncm = { 0 };
+    ncm.cbSize = sizeof(ncm);
+    const char* faceName = NULL;
+    if (SystemParametersInfoA(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0))
+        faceName = ncm.lfMessageFont.lfFaceName;
 
     m_font = CreateFontA(
         height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI"
+        DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, faceName
     );
 
     SendMessageA(m_window, WM_SETFONT, (WPARAM)m_font, TRUE);

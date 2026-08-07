@@ -371,9 +371,9 @@ void MainWindow::onChangeKeybinds() {
     double scale = this->getScaleFactor();
     auto S = [scale](int v) { return (int)(v * scale); };
 
-    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,           0x42);
-    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_ALT,               0x53);
-    std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT, 0x44);
+    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,             0x42);
+    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_CONTROL | MOD_SHIFT, 0x42);
+    std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT,   0x44);
 
     g_cap1 = { hotkey1.first, hotkey1.second, NULL };
     g_cap2 = { hotkey2.first, hotkey2.second, NULL };

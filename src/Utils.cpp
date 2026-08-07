@@ -344,10 +344,20 @@ std::pair<UINT, UINT> loadHotkey(const char* name, UINT defaultModifiers, UINT d
 HFONT createScaledFont(HWND window, int pointSize) {
     int dpi = getDPIForWindow(window);
     int height = -MulDiv(pointSize, dpi, 72);
+
+    // Pull the OS's own UI font (what dialogs/message boxes use) instead of
+    // hardcoding a face name — respects the user's system font on every
+    // Windows version, old or new.
+    NONCLIENTMETRICSA ncm = { 0 };
+    ncm.cbSize = sizeof(ncm);
+    const char* faceName = NULL;
+    if (SystemParametersInfoA(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0))
+        faceName = ncm.lfMessageFont.lfFaceName;
+
     return CreateFontA(
         height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI"
+        DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, faceName
     );
 }
 
