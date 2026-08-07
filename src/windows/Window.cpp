@@ -92,19 +92,21 @@ HWND Window::getWindow() {
     return m_window;
 }
 
-HWND Window::addLabel(const char* text, int x, int y, int width, int height) {
+HWND Window::addLabel(const char* text, int x, int y, int width, int height, bool centered) {
     double scale = getScaleFactor();
-    return CreateWindowExA(
+    HWND label = CreateWindowExA(
         0,
         "STATIC",
         text,
-        WS_CHILD | WS_VISIBLE,
+        WS_CHILD | WS_VISIBLE | (centered ? SS_CENTER : 0),
         (int)(x * scale), (int)(y * scale), (int)(width * scale), (int)(height * scale),
         m_window,
         NULL,
         GetModuleHandle(NULL),
         NULL
     );
+    if (m_font) SendMessageA(label, WM_SETFONT, (WPARAM)m_font, TRUE);
+    return label;
 }
 
 Window& Window::show(int nCmdShow) const {

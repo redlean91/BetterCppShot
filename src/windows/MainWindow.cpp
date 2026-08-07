@@ -27,7 +27,7 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
         .setTitle("About");
 
     // Keybinds
-    this->addLabel("Active keybinds:", 105, 125, 200, 20);
+    this->addLabel("Active keybinds:", 10, 125, 300, 20, true);
 
     std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,             0x42);
     std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_CONTROL | MOD_SHIFT, 0x42);
@@ -149,7 +149,7 @@ void MainWindow::onOpenAbout() {
         S(10), S(70), S(230), S(20),
         hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("STATIC", "Edited by: Redlean, mrrpmeowfurry",
+    CreateWindowA("STATIC", "Edited by: Redlean and contributors",
         WS_CHILD | WS_VISIBLE | SS_CENTER,
         S(10), S(110), S(230), S(20),
         hDlg, NULL, GetModuleHandle(NULL), NULL);
