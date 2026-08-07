@@ -30,8 +30,39 @@ CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screensh
     this->init(white, black);
 }
 
+CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screenshot& black, Gdiplus::Rect crop, bool blackOpaque) : Screenshot() {
+    m_crop = crop;
+    m_blackOpaque = blackOpaque;
+    
+    // Detect Windows version for mask threshold
+    OSVERSIONINFO osvi = {};
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    if (GetVersionEx(&osvi)) {
+        bool isWindows11Plus = (osvi.dwMajorVersion >= 10);
+        m_minAlpha = isWindows11Plus ? 254 : 0;  // Vista and Win7 use 0, Win11+ uses 254
+    }
+    
+    this->init(white, black);
+}
+
 CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screenshot& black, bool noCrop) : Screenshot() {
     m_noCrop = noCrop;
+    this->init(white, black);
+}
+
+CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screenshot& black, bool noCrop, bool blackOpaque) : Screenshot() {
+    m_noCrop = noCrop;
+    m_blackOpaque = blackOpaque;
+    
+    // Detect Windows version for mask threshold
+    // Vista and Windows 7 use minAlpha=0, Windows 11+ uses minAlpha=254
+    OSVERSIONINFO osvi = {};
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    if (GetVersionEx(&osvi)) {
+        bool isWindows11Plus = (osvi.dwMajorVersion >= 10);
+        m_minAlpha = isWindows11Plus ? 254 : 0;
+    }
+    
     this->init(white, black);
 }
 
@@ -87,7 +118,19 @@ void CompositeScreenshot::differentiateAlpha(Gdiplus::Bitmap* whiteShot, Gdiplus
                 ? toByte((blackR - whiteR + 255 + blackG - whiteG + 255 + blackB - whiteB + 255) / 3)
                 : 0;
 
-            if(alpha == 255) {
+            if (m_blackOpaque) {
+                if (alpha > m_minAlpha) {
+                    transparentPixels[currentPixel + 3] = 255;
+                    transparentPixels[currentPixel + 2] = 0;
+                    transparentPixels[currentPixel + 1] = 0;
+                    transparentPixels[currentPixel] = 0;
+                } else {
+                    transparentPixels[currentPixel + 3] = 0;
+                    transparentPixels[currentPixel + 2] = 0;
+                    transparentPixels[currentPixel + 1] = 0;
+                    transparentPixels[currentPixel] = 0;
+                }
+            } else if (alpha == 255) {
                 if(transparentFullBegin == nullptr) transparentFullBegin = transparentPixels + currentPixel;
                 if(whiteFullBegin == nullptr) whiteFullBegin = (BYTE*) whitePixels + currentPixel;
             } else {

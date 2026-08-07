@@ -27,11 +27,11 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
         .setTitle("About");
 
     // Keybinds
-    this->addLabel("Active keybinds:", 105, 125, 200, 20);
+    this->addLabel("Active keybinds:", 10, 125, 300, 20, true);
 
-    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,            0x42);
-    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_ALT,                0x53);
-    std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT,  0x44);
+    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,             0x42);
+    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_CONTROL | MOD_SHIFT, 0x42);
+    std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT,   0x44);
 
     UINT mod1 = hotkey1.first, vk1 = hotkey1.second;
     UINT mod2 = hotkey2.first, vk2 = hotkey2.second;
@@ -149,7 +149,7 @@ void MainWindow::onOpenAbout() {
         S(10), S(70), S(230), S(20),
         hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("STATIC", "Edited by: Redlean, mrrpmeowfurry",
+    CreateWindowA("STATIC", "Edited by: Redlean and contributors",
         WS_CHILD | WS_VISIBLE | SS_CENTER,
         S(10), S(110), S(230), S(20),
         hDlg, NULL, GetModuleHandle(NULL), NULL);
@@ -222,6 +222,9 @@ static LRESULT CALLBACK SettingsWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPAR
                     mainWnd->onChangeKeybinds();
                 } else if (id == 205) {
                     mainWnd->onChangeDelay();
+                } else if (id == 206) {
+                    bool checked = (IsDlgButtonChecked(hWnd, 206) == BST_CHECKED);
+                    CppShot::changeRegistryInt("CaptureMask", checked ? 1 : 0);
                 }
 
                 return 0;
@@ -264,11 +267,15 @@ void MainWindow::onOpenSettings() {
     CreateWindowA("BUTTON", "Delay", WS_CHILD | WS_VISIBLE,
         S(10), S(90), S(200), S(30), hDlg, (HMENU)205, GetModuleHandle(NULL), NULL);
 
+    HWND hMaskCheck = CreateWindowA("BUTTON", "Capture Mask", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+        S(10), S(125), S(200), S(20), hDlg, (HMENU)206, GetModuleHandle(NULL), NULL);
+
     CreateWindowA("BUTTON", "Close", WS_CHILD | WS_VISIBLE,
         S(75), S(150), S(70), S(30), hDlg, (HMENU)202, GetModuleHandle(NULL), NULL);
 
     HFONT font = CppShot::createScaledFont(hDlg);
     CppShot::applyFontToChildren(hDlg, font);
+    CheckDlgButton(hDlg, 206, CppShot::getRegistryInt("CaptureMask", 0) ? BST_CHECKED : BST_UNCHECKED);
 
     // Center over parent
     RECT rcParent, rcDlg;
@@ -364,9 +371,9 @@ void MainWindow::onChangeKeybinds() {
     double scale = this->getScaleFactor();
     auto S = [scale](int v) { return (int)(v * scale); };
 
-    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,           0x42);
-    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_ALT,               0x53);
-    std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT, 0x44);
+    std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,             0x42);
+    std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_CONTROL | MOD_SHIFT, 0x42);
+    std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT,   0x44);
 
     g_cap1 = { hotkey1.first, hotkey1.second, NULL };
     g_cap2 = { hotkey2.first, hotkey2.second, NULL };

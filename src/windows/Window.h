@@ -22,7 +22,7 @@ public:
     virtual Window &show(int nCmdShow = SW_SHOWNORMAL) const;
     virtual Window &hide() const;
     Window &setSize(int width, int height);
-    HWND addLabel(const char *text, int x, int y, int width, int height);
+    HWND addLabel(const char *text, int x, int y, int width, int height, bool centered = false);
 
     void addChild(Node * child);
     Button &addButton();
