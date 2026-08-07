@@ -38,9 +38,8 @@ CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screensh
     OSVERSIONINFO osvi = {};
     osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
     if (GetVersionEx(&osvi)) {
-        bool isVista = (osvi.dwMajorVersion == 6 && osvi.dwMinorVersion == 0);
         bool isWindows11Plus = (osvi.dwMajorVersion >= 10);
-        m_minAlpha = (isVista || isWindows11Plus) ? 254 : 0;
+        m_minAlpha = isWindows11Plus ? 254 : 0;  // Vista and Win7 use 0, Win11+ uses 254
     }
     
     this->init(white, black);
@@ -56,13 +55,12 @@ CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screensh
     m_blackOpaque = blackOpaque;
     
     // Detect Windows version for mask threshold
-    // Vista and Windows 11+ use minAlpha=254, others use minAlpha=0
+    // Vista and Windows 7 use minAlpha=0, Windows 11+ uses minAlpha=254
     OSVERSIONINFO osvi = {};
     osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
     if (GetVersionEx(&osvi)) {
-        bool isVista = (osvi.dwMajorVersion == 6 && osvi.dwMinorVersion == 0);
         bool isWindows11Plus = (osvi.dwMajorVersion >= 10);
-        m_minAlpha = (isVista || isWindows11Plus) ? 254 : 0;
+        m_minAlpha = isWindows11Plus ? 254 : 0;
     }
     
     this->init(white, black);

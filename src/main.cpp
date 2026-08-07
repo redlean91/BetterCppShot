@@ -322,35 +322,32 @@ void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow &whiteWi
         CompositeScreenshot transparentImage(shots.first, shots.second);
         transparentImage.save(base + "_b1.png");
 
-        // Disable shadows for mask capture on non-Vista systems to match AeroShotCRE behavior
+        // Disable shadows for mask capture on all systems to match AeroShotCRE behavior
         if (captureMask)
         {
-            if (!isVista)
-            {
-                BOOL shadowEnabled = FALSE;
-                if (SystemParametersInfoA(0x1024, 0, &shadowEnabled, 0) && shadowEnabled)
-                {                                                                                         // 0x1024 = SPI_GETDROPSHADOW
-                    SystemParametersInfoA(0x1025, 0, (PVOID)FALSE, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE); // 0x1025 = SPI_SETDROPSHADOW
-                    shadowsWereDisabled = true;
-                    Sleep(100);
+            BOOL shadowEnabled = FALSE;
+            if (SystemParametersInfoA(0x1024, 0, &shadowEnabled, 0) && shadowEnabled)
+            {                                                                                         // 0x1024 = SPI_GETDROPSHADOW
+                SystemParametersInfoA(0x1025, 0, (PVOID)FALSE, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE); // 0x1025 = SPI_SETDROPSHADOW
+                shadowsWereDisabled = true;
+                Sleep(100);
 
-                    // Recapture screenshots without shadows for mask generation
-                    blackWindow.hide();
-                    whiteWindow.show();
-                    Sleep(50);
-                    whiteWindow.hide();
-                    blackWindow.show();
-                    Sleep(50);
-                    shots.second.capture(foregroundWindow);
+                // Recapture screenshots without shadows for mask generation
+                blackWindow.hide();
+                whiteWindow.show();
+                Sleep(50);
+                whiteWindow.hide();
+                blackWindow.show();
+                Sleep(50);
+                shots.second.capture(foregroundWindow);
 
-                    blackWindow.hide();
-                    whiteWindow.show();
-                    Sleep(50);
-                    shots.first.capture(foregroundWindow);
+                blackWindow.hide();
+                whiteWindow.show();
+                Sleep(50);
+                shots.first.capture(foregroundWindow);
 
-                    blackWindow.hide();
-                    whiteWindow.hide();
-                }
+                blackWindow.hide();
+                whiteWindow.hide();
             }
         }
 
