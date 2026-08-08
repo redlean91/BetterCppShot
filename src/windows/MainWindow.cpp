@@ -7,6 +7,20 @@
 #include <windows.h>
 #include <shlobj.h>
 #include <string>
+#include "../themeValues.h"
+
+typedef HRESULT (WINAPI *SetWindowTheme_t)(HWND, LPCWSTR, LPCWSTR);
+
+static void DisableControlTheming(HWND hWnd) {
+    static HMODULE hUxtheme = LoadLibraryA("uxtheme.dll"); // null on Win98/NT4 — fine
+    static SetWindowTheme_t pSetWindowTheme = hUxtheme
+        ? (SetWindowTheme_t)GetProcAddress(hUxtheme, "SetWindowTheme")
+        : nullptr;
+
+    if (pSetWindowTheme) {
+        pSetWindowTheme(hWnd, L" ", L" ");
+    }
+}
 
 MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", "BetterCppShot", 0, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX) {
     setSize(330, 250);
@@ -92,6 +106,59 @@ static LRESULT CALLBACK AboutWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         case WM_CLOSE:
             DestroyWindow(hWnd);
             return 0;
+
+        case WM_DRAWITEM:
+            {
+                LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
+                if (dis->CtlType == ODT_BUTTON) {
+                    CppShot::DrawOwnerDrawButton(dis, BACKGROUND_BRUSH, BUTTON_PRESSED_BRUSH, BUTTON_HOT_BRUSH, BUTTON_TEXT_COLOR);
+                    return TRUE;
+                }
+            }
+            break;
+
+        
+        case WM_CTLCOLORSTATIC:
+            {
+                HDC hdc = (HDC)wParam;
+                if (OWNER_DRAW) {
+                    SetTextColor(hdc, LABEL_TEXT_COLOR);
+                    SetBkMode(hdc, TRANSPARENT);
+                    return (LRESULT)LABEL_BACKGROUND_BRUSH;
+                } else {
+                    SetTextColor(hdc, RGB(0,0,0));
+                    SetBkMode(hdc, (COLOR_BTNFACE + 1));
+                    return (LRESULT)(HBRUSH)(COLOR_BTNFACE + 1);
+                }
+            }
+        case WM_CTLCOLORBTN:
+            {
+                HDC hdc = (HDC)wParam;
+                SetBkMode(hdc, TRANSPARENT);
+                if (OWNER_DRAW) {
+                    return (LRESULT)BACKGROUND_BRUSH;
+                } else {
+                    return (LRESULT)CreateSolidBrush(RGB(255, 255, 255));
+                }
+            }
+        case WM_PAINT:
+            {
+                if (OWNER_DRAW) {
+                    PAINTSTRUCT ps;
+                    HDC hdc = BeginPaint(hWnd, &ps);
+                    FillRect(hdc, &ps.rcPaint, BACKGROUND_BRUSH);
+                    EndPaint(hWnd, &ps);
+                    return 0;
+                } else {
+                    PAINTSTRUCT ps;
+                    HDC hdc = BeginPaint(hWnd, &ps);
+                    FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_BTNFACE + 1));
+                    EndPaint(hWnd, &ps);
+                    return 0;
+                }
+                
+            }
+            
     }
     return DefWindowProcA(hWnd, msg, wParam, lParam);
 }
@@ -108,7 +175,7 @@ void MainWindow::onOpenAbout() {
     wc.lpfnWndProc   = AboutWndProc;
     wc.hInstance     = GetModuleHandle(NULL);
     wc.hIcon         = hIcon;
-    wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+    wc.hbrBackground = OWNER_DRAW ? BACKGROUND_BRUSH : (HBRUSH)(COLOR_BTNFACE + 1);
     wc.lpszClassName = className;
     wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
     RegisterClassA(&wc);
@@ -155,12 +222,12 @@ void MainWindow::onOpenAbout() {
         hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     CreateWindowA("BUTTON", "OK",
-        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | (OWNER_DRAW ? BS_OWNERDRAW : 0),
         S(85), S(190), S(80), S(30),
         hDlg, (HMENU)1, GetModuleHandle(NULL), NULL);
 
     CreateWindowA("BUTTON", "GitHub",
-        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | (OWNER_DRAW ? BS_OWNERDRAW : 0),
         S(85), S(150), S(80), S(30),
         hDlg, (HMENU)2, GetModuleHandle(NULL), NULL);
 
@@ -225,9 +292,74 @@ static LRESULT CALLBACK SettingsWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPAR
                 } else if (id == 206) {
                     bool checked = (IsDlgButtonChecked(hWnd, 206) == BST_CHECKED);
                     CppShot::changeRegistryInt("CaptureMask", checked ? 1 : 0);
+                } else if (id == 207) {
+                    bool checked = (IsDlgButtonChecked(hWnd, 207) == BST_CHECKED);
+                    CppShot::changeRegistryInt("DarkMode", checked ? 1 : 0);
                 }
 
                 return 0;
+            }
+        case WM_DRAWITEM:
+            {
+                LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
+                if (dis->CtlType == ODT_BUTTON) {
+                    CppShot::DrawOwnerDrawButton(dis, BACKGROUND_BRUSH, BUTTON_PRESSED_BRUSH, BUTTON_HOT_BRUSH, BUTTON_TEXT_COLOR);
+                    return TRUE;
+                }
+            }
+            break;
+
+        
+        case WM_CTLCOLORSTATIC:
+            {
+                HDC hdc = (HDC)wParam;
+                if (OWNER_DRAW) {
+                    SetTextColor(hdc, LABEL_TEXT_COLOR);
+                    SetBkMode(hdc, TRANSPARENT);
+                    return (LRESULT)LABEL_BACKGROUND_BRUSH;
+                } else {
+                    SetTextColor(hdc, RGB(0,0,0));
+                    SetBkMode(hdc, TRANSPARENT);
+                    return (LRESULT)(HBRUSH)(COLOR_BTNFACE + 1);
+                }
+            }
+        case WM_CTLCOLORBTN:
+            {
+                HDC hdc = (HDC)wParam;
+                HWND hCtl = (HWND)lParam;
+                int id = GetDlgCtrlID(hCtl);
+
+                if (id == 206 || id == 207) {
+                    SetBkMode(hdc, OPAQUE);
+                    SetTextColor(hdc, OWNER_DRAW ? BUTTON_TEXT_COLOR : RGB(0, 0, 0));
+                    SetBkColor(hdc, GetSysColor(COLOR_BTNFACE));
+                    return (LRESULT)GetSysColorBrush(COLOR_BTNFACE);
+                }
+
+                SetTextColor(hdc, OWNER_DRAW ? BUTTON_TEXT_COLOR : RGB(0, 0, 0));
+                SetBkMode(hdc, TRANSPARENT);
+                if (OWNER_DRAW) {
+                    return (LRESULT)BACKGROUND_BRUSH;
+                } else {
+                    return (LRESULT)GetSysColorBrush(COLOR_BTNFACE);
+                }
+            }
+        case WM_PAINT:
+            {
+                if (OWNER_DRAW) {
+                    PAINTSTRUCT ps;
+                    HDC hdc = BeginPaint(hWnd, &ps);
+                    FillRect(hdc, &ps.rcPaint, BACKGROUND_BRUSH);
+                    EndPaint(hWnd, &ps);
+                    return 0;
+                } else {
+                    PAINTSTRUCT ps;
+                    HDC hdc = BeginPaint(hWnd, &ps);
+                    FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_BTNFACE + 1));
+                    EndPaint(hWnd, &ps);
+                    return 0;
+                }
+                
             }
     }
     return DefWindowProcA(hWnd, msg, wParam, lParam);
@@ -254,29 +386,35 @@ void MainWindow::onOpenSettings() {
         WS_EX_DLGMODALFRAME, className, "Settings",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        S(230), S(220),
+        S(230), S(250),
         this->getWindow(), NULL, GetModuleHandle(NULL), this
     );
 
-    CreateWindowA("BUTTON", "Change Screenshot Folder", WS_CHILD | WS_VISIBLE,
+    CreateWindowA("BUTTON", "Change Screenshot Folder", WS_CHILD | WS_VISIBLE | (OWNER_DRAW ? BS_OWNERDRAW : 0),
         S(10), S(10), S(200), S(30), hDlg, (HMENU)203, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("BUTTON", "Change Keybinds", WS_CHILD | WS_VISIBLE,
+    CreateWindowA("BUTTON", "Change Keybinds", WS_CHILD | WS_VISIBLE | (OWNER_DRAW ? BS_OWNERDRAW : 0),
         S(10), S(50), S(200), S(30), hDlg, (HMENU)204, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("BUTTON", "Delay", WS_CHILD | WS_VISIBLE,
+    CreateWindowA("BUTTON", "Delay", WS_CHILD | WS_VISIBLE | (OWNER_DRAW ? BS_OWNERDRAW : 0),
         S(10), S(90), S(200), S(30), hDlg, (HMENU)205, GetModuleHandle(NULL), NULL);
 
     HWND hMaskCheck = CreateWindowA("BUTTON", "Capture Mask", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
         S(10), S(125), S(200), S(20), hDlg, (HMENU)206, GetModuleHandle(NULL), NULL);
+    if (OWNER_DRAW) {DisableControlTheming(hMaskCheck);};
 
-    CreateWindowA("BUTTON", "Close", WS_CHILD | WS_VISIBLE,
-        S(75), S(150), S(70), S(30), hDlg, (HMENU)202, GetModuleHandle(NULL), NULL);
+    HWND hDarkModeCheck = CreateWindowA("BUTTON", "Dark Mode (Requires restart)", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+        S(10), S(150), S(200), S(20), hDlg, (HMENU)207, GetModuleHandle(NULL), NULL);
+    if (OWNER_DRAW) {DisableControlTheming(hDarkModeCheck);};
+
+    CreateWindowA("BUTTON", "Close", WS_CHILD | WS_VISIBLE | (OWNER_DRAW ? BS_OWNERDRAW : 0),
+        S(75), S(180), S(70), S(30), hDlg, (HMENU)202, GetModuleHandle(NULL), NULL);
 
     HFONT font = CppShot::createScaledFont(hDlg);
     CppShot::applyFontToChildren(hDlg, font);
     CheckDlgButton(hDlg, 206, CppShot::getRegistryInt("CaptureMask", 0) ? BST_CHECKED : BST_UNCHECKED);
-
+    
+    CheckDlgButton(hDlg, 207, CppShot::getRegistryInt("DarkMode", 0) ? BST_CHECKED : BST_UNCHECKED);
     // Center over parent
     RECT rcParent, rcDlg;
     GetWindowRect(this->getWindow(), &rcParent);
@@ -363,6 +501,57 @@ static LRESULT CALLBACK HotkeyDlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         case WM_DESTROY:
             g_dlgClosed = true;
             return 0;
+        case WM_DRAWITEM:
+            {
+                LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
+                if (dis->CtlType == ODT_BUTTON) {
+                    CppShot::DrawOwnerDrawButton(dis, BACKGROUND_BRUSH, BUTTON_PRESSED_BRUSH, BUTTON_HOT_BRUSH, BUTTON_TEXT_COLOR);
+                    return TRUE;
+                }
+            }
+            break;
+
+        
+        case WM_CTLCOLORSTATIC:
+            {
+                HDC hdc = (HDC)wParam;
+                if (OWNER_DRAW) {
+                    SetTextColor(hdc, LABEL_TEXT_COLOR);
+                    SetBkMode(hdc, TRANSPARENT);
+                    return (LRESULT)LABEL_BACKGROUND_BRUSH;
+                } else {
+                    SetTextColor(hdc, RGB(0,0,0));
+                    SetBkMode(hdc, (COLOR_BTNFACE + 1));
+                    return (LRESULT)(HBRUSH)(COLOR_BTNFACE + 1);
+                }
+            }
+        case WM_CTLCOLORBTN:
+            {
+                HDC hdc = (HDC)wParam;
+                SetBkMode(hdc, TRANSPARENT);
+                if (OWNER_DRAW) {
+                    return (LRESULT)BACKGROUND_BRUSH;
+                } else {
+                    return (LRESULT)CreateSolidBrush(RGB(255, 255, 255));
+                }
+            }
+        case WM_PAINT:
+            {
+                if (OWNER_DRAW) {
+                    PAINTSTRUCT ps;
+                    HDC hdc = BeginPaint(hWnd, &ps);
+                    FillRect(hdc, &ps.rcPaint, BACKGROUND_BRUSH);
+                    EndPaint(hWnd, &ps);
+                    return 0;
+                } else {
+                    PAINTSTRUCT ps;
+                    HDC hdc = BeginPaint(hWnd, &ps);
+                    FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_BTNFACE + 1));
+                    EndPaint(hWnd, &ps);
+                    return 0;
+                }
+                
+            }
     }
     return DefWindowProcA(hWnd, msg, wParam, lParam);
 }
@@ -425,8 +614,8 @@ void MainWindow::onChangeKeybinds() {
     CreateWindowA("STATIC", "*A restart of the application is required.", WS_CHILD | WS_VISIBLE | SS_CENTER,
         S(10), S(230), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, S(60),  S(258), S(80), S(28), hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
-    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   S(155), S(258), S(80), S(28), hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | (OWNER_DRAW ? BS_OWNERDRAW : 0), S(60),  S(258), S(80), S(28), hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE | (OWNER_DRAW ? BS_OWNERDRAW : 0), S(155), S(258), S(80), S(28), hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
 
     g_oldProc1 = (WNDPROC)SetWindowLongPtrA(hPreview1, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc1);
     g_oldProc2 = (WNDPROC)SetWindowLongPtrA(hPreview2, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc2);
@@ -498,6 +687,57 @@ static LRESULT CALLBACK DelayDlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         case WM_DESTROY:
             if (g_delayFont) { DeleteObject(g_delayFont); g_delayFont = nullptr; }
             return 0;
+        case WM_DRAWITEM:
+            {
+                LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
+                if (dis->CtlType == ODT_BUTTON) {
+                    CppShot::DrawOwnerDrawButton(dis, BACKGROUND_BRUSH, BUTTON_PRESSED_BRUSH, BUTTON_HOT_BRUSH, BUTTON_TEXT_COLOR);
+                    return TRUE;
+                }
+            }
+            break;
+
+        
+        case WM_CTLCOLORSTATIC:
+            {
+                HDC hdc = (HDC)wParam;
+                if (OWNER_DRAW) {
+                    SetTextColor(hdc, LABEL_TEXT_COLOR);
+                    SetBkMode(hdc, TRANSPARENT);
+                    return (LRESULT)LABEL_BACKGROUND_BRUSH;
+                } else {
+                    SetTextColor(hdc, RGB(0,0,0));
+                    SetBkMode(hdc, (COLOR_BTNFACE + 1));
+                    return (LRESULT)(HBRUSH)(COLOR_BTNFACE + 1);
+                }
+            }
+        case WM_CTLCOLORBTN:
+            {
+                HDC hdc = (HDC)wParam;
+                SetBkMode(hdc, TRANSPARENT);
+                if (OWNER_DRAW) {
+                    return (LRESULT)BACKGROUND_BRUSH;
+                } else {
+                    return (LRESULT)CreateSolidBrush(RGB(255, 255, 255));
+                }
+            }
+        case WM_PAINT:
+            {
+                if (OWNER_DRAW) {
+                    PAINTSTRUCT ps;
+                    HDC hdc = BeginPaint(hWnd, &ps);
+                    FillRect(hdc, &ps.rcPaint, BACKGROUND_BRUSH);
+                    EndPaint(hWnd, &ps);
+                    return 0;
+                } else {
+                    PAINTSTRUCT ps;
+                    HDC hdc = BeginPaint(hWnd, &ps);
+                    FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_BTNFACE + 1));
+                    EndPaint(hWnd, &ps);
+                    return 0;
+                }
+                
+            }
     }
     return DefWindowProcA(hWnd, msg, wParam, lParam);
 };
@@ -542,8 +782,8 @@ void MainWindow::onChangeDelay() {
     CreateWindowA("STATIC", "Click on the text box and write your delay in milliseconds.", WS_CHILD | WS_VISIBLE | SS_CENTER,
         S(10), S(10), S(280), S(40), hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, S(60),  S(105), S(80), S(28), hDlg, (HMENU)303, GetModuleHandle(NULL), NULL);
-    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE,                   S(155), S(105), S(80), S(28), hDlg, (HMENU)304, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | (OWNER_DRAW ? BS_OWNERDRAW : 0), S(60),  S(105), S(80), S(28), hDlg, (HMENU)303, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE | (OWNER_DRAW ? BS_OWNERDRAW : 0), S(155), S(105), S(80), S(28), hDlg, (HMENU)304, GetModuleHandle(NULL), NULL);
 
     g_delayFont = CppShot::createScaledFont(hDlg);
     CppShot::applyFontToChildren(hDlg, g_delayFont);

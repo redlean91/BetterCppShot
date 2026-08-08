@@ -1,0 +1,13 @@
+#include "themeValues.h"
+#include "Utils.h"
+
+HBRUSH BACKGROUND_BRUSH = CreateSolidBrush(RGB(30, 30, 30));
+HBRUSH LABEL_BACKGROUND_BRUSH = CreateSolidBrush(RGB(30, 30, 30));
+HBRUSH BUTTON_BACKGROUND_BRUSH = CreateSolidBrush(RGB(80, 80, 80));
+HBRUSH BUTTON_PRESSED_BRUSH = CreateSolidBrush(RGB(70, 70, 70));
+HBRUSH BUTTON_HOT_BRUSH = CreateSolidBrush(RGB(255, 255, 255));
+HBRUSH BUTTON_WHITE_BRUSH = CreateSolidBrush(RGB(255, 255, 255));
+COLORREF LABEL_TEXT_COLOR = RGB(255, 255, 255);
+COLORREF BUTTON_TEXT_COLOR = RGB(255, 255, 255);
+
+bool OWNER_DRAW = CppShot::getRegistryInt("DarkMode", 0) != 0;

@@ -14,6 +14,14 @@
 #define VK_OEM_PERIOD 0xBE
 #endif
 
+#ifndef ODS_HOTLIGHT
+#define ODS_HOTLIGHT 0x0040
+#endif
+
+#ifndef _countof
+#define _countof(array) (sizeof(array) / sizeof((array)[0]))
+#endif
+
 namespace CppShot {
 
 std::string getSaveDirectory() {
@@ -394,6 +402,32 @@ const char* statusString(const Gdiplus::Status status) {
         case Gdiplus::PropertyNotFound:          return "PropertyNotFound";
         case Gdiplus::PropertyNotSupported:      return "PropertyNotSupported";
         default:                                 return "Status Type Not Found.";
+    }
+}
+
+void DrawOwnerDrawButton(LPDRAWITEMSTRUCT dis, HBRUSH backgroundBrush, HBRUSH pressedBrush, HBRUSH hotBrush, COLORREF textColor) {
+    RECT rc = dis->rcItem;
+    HDC hdc = dis->hDC;
+
+    bool pressed = (dis->itemState & ODS_SELECTED) != 0;
+    bool hot = (dis->itemState & ODS_HOTLIGHT) != 0;
+    bool disabled = (dis->itemState & ODS_DISABLED) != 0;
+
+    HBRUSH brush = pressed ? backgroundBrush : (hot ? hotBrush : backgroundBrush);
+    FillRect(hdc, &rc, brush);
+    DrawEdge(hdc, &rc, pressed ? BDR_SUNKENINNER : BDR_RAISEDOUTER, BF_RECT);
+
+    char text[128] = {};
+    GetWindowTextA(dis->hwndItem, text, _countof(text));
+
+    SetBkMode(hdc, TRANSPARENT);
+    SetTextColor(hdc, disabled ? RGB(160, 160, 160) : textColor);
+    DrawTextA(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+    if (dis->itemState & ODS_FOCUS) {
+        RECT focusRect = dis->rcItem;
+        InflateRect(&focusRect, -4, -4);
+        DrawFocusRect(hdc, &focusRect);
     }
 }
 

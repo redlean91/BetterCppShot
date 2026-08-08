@@ -6,6 +6,7 @@
 #include <commctrl.h>
 #include <stdexcept>
 #include <string>
+#include "../themeValues.h"
 
 Window::Window(HBRUSH brush, const char* className, const char* title, DWORD dwExStyle, DWORD dwStyle) {
     HINSTANCE instance = GetModuleHandle(NULL);
@@ -140,6 +141,50 @@ LRESULT Window::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
                 case ID_FILE_EXIT: DestroyWindow(m_window); break;
             }
             break;
+
+        case WM_DRAWITEM: {
+            LPDRAWITEMSTRUCT dis = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
+            if (dis && dis->CtlType == ODT_BUTTON) {
+                CppShot::DrawOwnerDrawButton(dis, BUTTON_BACKGROUND_BRUSH, BUTTON_PRESSED_BRUSH, BUTTON_HOT_BRUSH, BUTTON_TEXT_COLOR);
+                return 0;
+            }
+            break;
+        }
+
+        case WM_CTLCOLORSTATIC: {
+            HDC hdc = reinterpret_cast<HDC>(wParam);
+            if (OWNER_DRAW) {
+                SetTextColor(hdc, LABEL_TEXT_COLOR);
+                SetBkMode(hdc, TRANSPARENT);
+                return reinterpret_cast<LRESULT>(LABEL_BACKGROUND_BRUSH);
+            } else {
+                SetTextColor(hdc, RGB(0, 0, 0));
+                SetBkMode(hdc, TRANSPARENT);
+                return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_BTNFACE));
+            }
+        }
+
+        case WM_CTLCOLORBTN: {
+            HDC hdc = reinterpret_cast<HDC>(wParam);
+            SetBkMode(hdc, TRANSPARENT);
+            if (OWNER_DRAW) {
+                return reinterpret_cast<LRESULT>(BACKGROUND_BRUSH);
+            } else {
+                return reinterpret_cast<LRESULT>(BUTTON_WHITE_BRUSH);
+            }
+        }
+
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(m_window, &ps);
+            if (OWNER_DRAW) {
+                FillRect(hdc, &ps.rcPaint, BACKGROUND_BRUSH);
+            } else {
+                FillRect(hdc, &ps.rcPaint, GetSysColorBrush(COLOR_BTNFACE));
+            }
+            EndPaint(m_window, &ps);
+            return 0;
+        }
 
         case WM_DESTROY: {
             LONG style = GetWindowLongA(m_window, GWL_EXSTYLE);

@@ -23,6 +23,7 @@ namespace CppShot {
     unsigned int getDPIForWindow(HWND window);
     HFONT createScaledFont(HWND window, int pointSize = 9);
     void applyFontToChildren(HWND parent, HFONT font);
+    void DrawOwnerDrawButton(LPDRAWITEMSTRUCT dis, HBRUSH backgroundBrush, HBRUSH pressedBrush, HBRUSH hotBrush, COLORREF textColor);
 
     inline unsigned __int64 currentTimestamp() {
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
