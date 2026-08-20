@@ -30,8 +30,39 @@ CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screensh
     this->init(white, black);
 }
 
+CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screenshot& black, Gdiplus::Rect crop, bool blackOpaque) : Screenshot() {
+    m_crop = crop;
+    m_blackOpaque = blackOpaque;
+    
+    // Detect Windows version for mask threshold
+    OSVERSIONINFO osvi = {};
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    if (GetVersionEx(&osvi)) {
+        bool isWindows11Plus = (osvi.dwMajorVersion >= 10);
+        m_minAlpha = isWindows11Plus ? 254 : 0;  // Vista and Win7 use 0, Win11+ uses 254
+    }
+    
+    this->init(white, black);
+}
+
 CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screenshot& black, bool noCrop) : Screenshot() {
     m_noCrop = noCrop;
+    this->init(white, black);
+}
+
+CompositeScreenshot::CompositeScreenshot(const Screenshot& white, const Screenshot& black, bool noCrop, bool blackOpaque) : Screenshot() {
+    m_noCrop = noCrop;
+    m_blackOpaque = blackOpaque;
+    
+    // Detect Windows version for mask threshold
+    // Vista and Windows 7 use minAlpha=0, Windows 11+ uses minAlpha=254
+    OSVERSIONINFO osvi = {};
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    if (GetVersionEx(&osvi)) {
+        bool isWindows11Plus = (osvi.dwMajorVersion >= 10);
+        m_minAlpha = isWindows11Plus ? 254 : 0;
+    }
+    
     this->init(white, black);
 }
 
@@ -56,12 +87,15 @@ void CompositeScreenshot::differentiateAlpha(Gdiplus::Bitmap* whiteShot, Gdiplus
     auto width = whiteShot->GetWidth();
     auto height = whiteShot->GetHeight();
 
-    BYTE* transparentFullBegin = nullptr;
-    BYTE* whiteFullBegin = nullptr;
-
     for(int y = 0; y < height; y++){
+        BYTE* transparentRow = transparentPixels + y * transparentBitmapData.Stride;
+        const BYTE* whiteRow = whitePixels + y * whiteBitmapData.Stride;
+        const BYTE* blackRow = blackPixels + y * blackBitmapData.Stride;
+        BYTE* transparentFullBegin = nullptr;
+        const BYTE* whiteFullBegin = nullptr;
+
         for(int x = 0; x < width; x++){
-            int currentPixel = (y*width + x)*4;
+            int currentPixel = x * 4;
 
             bool isInsideMonitor = isOnlyOneMonitorConnected;
             if(!isInsideMonitor){
@@ -75,35 +109,53 @@ void CompositeScreenshot::differentiateAlpha(Gdiplus::Bitmap* whiteShot, Gdiplus
 
             // Oddly enough this makes the code both faster and more readable
             // compared to direct array accesses in the calculation itself
-            BYTE blackR = blackPixels[currentPixel + 2];
-            BYTE blackG = blackPixels[currentPixel + 1];
-            BYTE blackB = blackPixels[currentPixel];
-            BYTE whiteR = whitePixels[currentPixel + 2];
-            BYTE whiteG = whitePixels[currentPixel + 1];
-            BYTE whiteB = whitePixels[currentPixel];
+            BYTE blackR = blackRow[currentPixel + 2];
+            BYTE blackG = blackRow[currentPixel + 1];
+            BYTE blackB = blackRow[currentPixel];
+            BYTE whiteR = whiteRow[currentPixel + 2];
+            BYTE whiteG = whiteRow[currentPixel + 1];
+            BYTE whiteB = whiteRow[currentPixel];
 
             // Calculate alpha
             BYTE alpha = isInsideMonitor
                 ? toByte((blackR - whiteR + 255 + blackG - whiteG + 255 + blackB - whiteB + 255) / 3)
                 : 0;
 
-            if(alpha == 255) {
-                if(transparentFullBegin == nullptr) transparentFullBegin = transparentPixels + currentPixel;
-                if(whiteFullBegin == nullptr) whiteFullBegin = (BYTE*) whitePixels + currentPixel;
+            if (m_blackOpaque) {
+                if (alpha > m_minAlpha) {
+                    transparentRow[currentPixel + 3] = 255;
+                    transparentRow[currentPixel + 2] = 0;
+                    transparentRow[currentPixel + 1] = 0;
+                    transparentRow[currentPixel] = 0;
+                } else {
+                    transparentRow[currentPixel + 3] = 0;
+                    transparentRow[currentPixel + 2] = 0;
+                    transparentRow[currentPixel + 1] = 0;
+                    transparentRow[currentPixel] = 0;
+                }
+            } else if (alpha == 255) {
+                if(transparentFullBegin == nullptr) transparentFullBegin = transparentRow + currentPixel;
+                if(whiteFullBegin == nullptr) whiteFullBegin = whiteRow + currentPixel;
             } else {
                 if(transparentFullBegin != nullptr) {
-                    std::memcpy(transparentFullBegin, whiteFullBegin, (transparentPixels + currentPixel) - transparentFullBegin);
+                    std::memcpy(transparentFullBegin, whiteFullBegin, (transparentRow + currentPixel) - transparentFullBegin);
                     transparentFullBegin = nullptr;
                     whiteFullBegin = nullptr;
                 }
 
                 if (alpha > 0) {
-                    transparentPixels[currentPixel + 3] = alpha;
-                    transparentPixels[currentPixel + 2] = toByte(255 * blackR / alpha); // RED
-                    transparentPixels[currentPixel + 1] = toByte(255 * blackG / alpha); // GREEN
-                    transparentPixels[currentPixel] = toByte(255 * blackB / alpha); // BLUE
+                    transparentRow[currentPixel + 3] = alpha;
+                    transparentRow[currentPixel + 2] = toByte(255 * blackR / alpha); // RED
+                    transparentRow[currentPixel + 1] = toByte(255 * blackG / alpha); // GREEN
+                    transparentRow[currentPixel] = toByte(255 * blackB / alpha); // BLUE
                 }
             }
+        }
+
+        if (transparentFullBegin != nullptr)
+        {
+            std::memcpy(transparentFullBegin, whiteFullBegin,
+                        (transparentRow + width * 4) - transparentFullBegin);
         }
     }
 

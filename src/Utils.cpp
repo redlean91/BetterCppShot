@@ -14,6 +14,14 @@
 #define VK_OEM_PERIOD 0xBE
 #endif
 
+#ifndef ODS_HOTLIGHT
+#define ODS_HOTLIGHT 0x0040
+#endif
+
+#ifndef _countof
+#define _countof(array) (sizeof(array) / sizeof((array)[0]))
+#endif
+
 namespace CppShot {
 
 std::string getSaveDirectory() {
@@ -341,6 +349,35 @@ std::pair<UINT, UINT> loadHotkey(const char* name, UINT defaultModifiers, UINT d
     return {modifiers, vk};
 }
 
+HFONT createScaledFont(HWND window, int pointSize) {
+    int dpi = getDPIForWindow(window);
+    int height = -MulDiv(pointSize, dpi, 72);
+
+    // Pull the OS's own UI font (what dialogs/message boxes use) instead of
+    // hardcoding a face name — respects the user's system font on every
+    // Windows version, old or new.
+    NONCLIENTMETRICSA ncm = { 0 };
+    ncm.cbSize = sizeof(ncm);
+    const char* faceName = NULL;
+    if (SystemParametersInfoA(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0))
+        faceName = ncm.lfMessageFont.lfFaceName;
+
+    return CreateFontA(
+        height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, faceName
+    );
+}
+
+static BOOL CALLBACK SetChildFontProc(HWND hwnd, LPARAM lParam) {
+    SendMessageA(hwnd, WM_SETFONT, (WPARAM)lParam, TRUE);
+    return TRUE;
+}
+
+void applyFontToChildren(HWND parent, HFONT font) {
+    EnumChildWindows(parent, SetChildFontProc, (LPARAM)font);
+}
+
 // Gdiplus status string helper
 const char* statusString(const Gdiplus::Status status) {
     switch (status) {
@@ -365,6 +402,32 @@ const char* statusString(const Gdiplus::Status status) {
         case Gdiplus::PropertyNotFound:          return "PropertyNotFound";
         case Gdiplus::PropertyNotSupported:      return "PropertyNotSupported";
         default:                                 return "Status Type Not Found.";
+    }
+}
+
+void DrawOwnerDrawButton(LPDRAWITEMSTRUCT dis, HBRUSH backgroundBrush, HBRUSH pressedBrush, HBRUSH hotBrush, COLORREF textColor) {
+    RECT rc = dis->rcItem;
+    HDC hdc = dis->hDC;
+
+    bool pressed = (dis->itemState & ODS_SELECTED) != 0;
+    bool hot = (dis->itemState & ODS_HOTLIGHT) != 0;
+    bool disabled = (dis->itemState & ODS_DISABLED) != 0;
+
+    HBRUSH brush = pressed ? backgroundBrush : (hot ? hotBrush : backgroundBrush);
+    FillRect(hdc, &rc, brush);
+    DrawEdge(hdc, &rc, pressed ? BDR_SUNKENINNER : BDR_RAISEDOUTER, BF_RECT);
+
+    char text[128] = {};
+    GetWindowTextA(dis->hwndItem, text, _countof(text));
+
+    SetBkMode(hdc, TRANSPARENT);
+    SetTextColor(hdc, disabled ? RGB(160, 160, 160) : textColor);
+    DrawTextA(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+    if (dis->itemState & ODS_FOCUS) {
+        RECT focusRect = dis->rcItem;
+        InflateRect(&focusRect, -4, -4);
+        DrawFocusRect(hdc, &focusRect);
     }
 }
 

@@ -9,8 +9,9 @@ class Window
 protected:
     HWND m_window = nullptr;
     std::vector<Node *> m_children;
+    HFONT m_font = nullptr;
     virtual LRESULT handleMessage(UINT message, WPARAM wParam, LPARAM lParam);
-
+    
 public:
     Window(HBRUSH brush, const char *className, const char *title,
            DWORD dwExStyle = 0, DWORD dwStyle = WS_OVERLAPPEDWINDOW);
@@ -21,13 +22,14 @@ public:
     virtual Window &show(int nCmdShow = SW_SHOWNORMAL) const;
     virtual Window &hide() const;
     Window &setSize(int width, int height);
-    HWND addLabel(const char *text, int x, int y, int width, int height);
+    HWND addLabel(const char *text, int x, int y, int width, int height, bool centered = false);
 
     void addChild(Node * child);
     Button &addButton();
 
     unsigned int getDPI();
     double getScaleFactor();
+    void updateFont();
 
     virtual ~Window();
 };

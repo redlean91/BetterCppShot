@@ -6,6 +6,7 @@
 #include <commctrl.h>
 #include <stdexcept>
 #include <string>
+#include "../themeValues.h"
 
 Window::Window(HBRUSH brush, const char* className, const char* title, DWORD dwExStyle, DWORD dwStyle) {
     HINSTANCE instance = GetModuleHandle(NULL);
@@ -68,6 +69,8 @@ Window::Window(HBRUSH brush, const char* className, const char* title, DWORD dwE
     style &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
     SetWindowLongA(m_window, GWL_STYLE, style);
     SetWindowPos(m_window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+    updateFont();
 }
 
 LRESULT CALLBACK Window::windowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -90,18 +93,21 @@ HWND Window::getWindow() {
     return m_window;
 }
 
-HWND Window::addLabel(const char* text, int x, int y, int width, int height) {
-    return CreateWindowExA(
+HWND Window::addLabel(const char* text, int x, int y, int width, int height, bool centered) {
+    double scale = getScaleFactor();
+    HWND label = CreateWindowExA(
         0,
         "STATIC",
         text,
-        WS_CHILD | WS_VISIBLE,
-        x, y, width, height,
+        WS_CHILD | WS_VISIBLE | (centered ? SS_CENTER : 0),
+        (int)(x * scale), (int)(y * scale), (int)(width * scale), (int)(height * scale),
         m_window,
         NULL,
         GetModuleHandle(NULL),
         NULL
     );
+    if (m_font) SendMessageA(label, WM_SETFONT, (WPARAM)m_font, TRUE);
+    return label;
 }
 
 Window& Window::show(int nCmdShow) const {
@@ -136,6 +142,50 @@ LRESULT Window::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             }
             break;
 
+        case WM_DRAWITEM: {
+            LPDRAWITEMSTRUCT dis = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
+            if (dis && dis->CtlType == ODT_BUTTON) {
+                CppShot::DrawOwnerDrawButton(dis, BUTTON_BACKGROUND_BRUSH, BUTTON_PRESSED_BRUSH, BUTTON_HOT_BRUSH, BUTTON_TEXT_COLOR);
+                return 0;
+            }
+            break;
+        }
+
+        case WM_CTLCOLORSTATIC: {
+            HDC hdc = reinterpret_cast<HDC>(wParam);
+            if (OWNER_DRAW) {
+                SetTextColor(hdc, LABEL_TEXT_COLOR);
+                SetBkMode(hdc, TRANSPARENT);
+                return reinterpret_cast<LRESULT>(LABEL_BACKGROUND_BRUSH);
+            } else {
+                SetTextColor(hdc, RGB(0, 0, 0));
+                SetBkMode(hdc, TRANSPARENT);
+                return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_BTNFACE));
+            }
+        }
+
+        case WM_CTLCOLORBTN: {
+            HDC hdc = reinterpret_cast<HDC>(wParam);
+            SetBkMode(hdc, TRANSPARENT);
+            if (OWNER_DRAW) {
+                return reinterpret_cast<LRESULT>(BACKGROUND_BRUSH);
+            } else {
+                return reinterpret_cast<LRESULT>(BUTTON_WHITE_BRUSH);
+            }
+        }
+
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(m_window, &ps);
+            if (OWNER_DRAW) {
+                FillRect(hdc, &ps.rcPaint, BACKGROUND_BRUSH);
+            } else {
+                FillRect(hdc, &ps.rcPaint, GetSysColorBrush(COLOR_BTNFACE));
+            }
+            EndPaint(m_window, &ps);
+            return 0;
+        }
+
         case WM_DESTROY: {
             LONG style = GetWindowLongA(m_window, GWL_EXSTYLE);
             if (!(style & WS_EX_TOOLWINDOW)) {
@@ -147,6 +197,7 @@ LRESULT Window::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         }
 
         case 0x02E0: // WM_DPICHANGED
+            updateFont();
             for (auto child : m_children) child->forceResize();
             break;
 
@@ -157,8 +208,31 @@ LRESULT Window::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     return 0;
 }
 
+void Window::updateFont() {
+    if (m_font) DeleteObject(m_font);
+
+    int dpi = getDPI();
+    int height = -MulDiv(9, dpi, 72); // 9pt, matches the default UI font size at 96 DPI
+
+    NONCLIENTMETRICSA ncm = { 0 };
+    ncm.cbSize = sizeof(ncm);
+    const char* faceName = NULL;
+    if (SystemParametersInfoA(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0))
+        faceName = ncm.lfMessageFont.lfFaceName;
+
+    m_font = CreateFontA(
+        height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, faceName
+    );
+
+    SendMessageA(m_window, WM_SETFONT, (WPARAM)m_font, TRUE);
+    for (auto child : m_children) child->setFont(m_font);
+}
+
 void Window::addChild(Node* child) {
     m_children.push_back(child);
+    if (m_font) child->setFont(m_font);
 }
 
 Button& Window::addButton() {
@@ -176,4 +250,5 @@ double Window::getScaleFactor() {
 
 Window::~Window() {
     for (auto child : m_children) delete child;
+    if (m_font) DeleteObject(m_font);
 }
