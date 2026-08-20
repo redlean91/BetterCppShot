@@ -23,7 +23,7 @@ static void DisableControlTheming(HWND hWnd) {
 }
 
 MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", "BetterCppShot", 0, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX) {
-    setSize(330, 250);
+    setSize(330, 270);
     this->addButton()
         .setCallback([this]() { onOpenExplorer(); })
         .setPosition(10, 10)
@@ -46,10 +46,12 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
     std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,             0x42);
     std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_CONTROL | MOD_SHIFT, 0x42);
     std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT,   0x44);
+    std::pair<UINT, UINT> hotkey4 = CppShot::loadHotkey("ScreenshotTaskbar", MOD_CONTROL | MOD_ALT, 0x54); // CTRL+ALT+T default
 
     UINT mod1 = hotkey1.first, vk1 = hotkey1.second;
     UINT mod2 = hotkey2.first, vk2 = hotkey2.second;
     UINT mod3 = hotkey3.first, vk3 = hotkey3.second;
+    UINT mod4 = hotkey4.first, vk4 = hotkey4.second;
 
     std::string hotkey_b1      = CppShot::HotkeyToString(mod1, vk1);
     std::string hotkey_b1_text =    "Active: " + hotkey_b1;
@@ -62,6 +64,10 @@ MainWindow::MainWindow() : Window((HBRUSH)(COLOR_BTNFACE + 1), "MainCreWindow", 
     std::string hotkey_desk      = CppShot::HotkeyToString(mod3, vk3);
     std::string hotkey_desk_text =  "Desktop: " + hotkey_desk;
     this->addLabel(hotkey_desk_text.c_str(), 10, 190, 200, 20);
+
+    std::string hotkey_tb      = CppShot::HotkeyToString(mod4, vk4);
+    std::string hotkey_tb_text =  "Taskbar: " + hotkey_tb;
+    this->addLabel(hotkey_tb_text.c_str(), 10, 210, 200, 20);
 }
 
 void MainWindow::onOpenExplorer() {
@@ -447,9 +453,9 @@ struct KeyCapture {
     HWND hPreview;
 };
 
-static KeyCapture g_cap1, g_cap2, g_cap3;
+static KeyCapture g_cap1, g_cap2, g_cap3, g_cap4;
 
-static WNDPROC g_oldProc1 = NULL, g_oldProc2 = NULL, g_oldProc3 = NULL;
+static WNDPROC g_oldProc1 = NULL, g_oldProc2 = NULL, g_oldProc3 = NULL, g_oldProc4 = NULL;
 
 static LRESULT captureHotkeyMsg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, WNDPROC oldProc, KeyCapture* cap) {
     if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) {
@@ -478,6 +484,9 @@ static LRESULT CALLBACK HotkeySubclassProc2(HWND hWnd, UINT msg, WPARAM wParam, 
 static LRESULT CALLBACK HotkeySubclassProc3(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return captureHotkeyMsg(hWnd, msg, wParam, lParam, g_oldProc3, &g_cap3);
 }
+static LRESULT CALLBACK HotkeySubclassProc4(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    return captureHotkeyMsg(hWnd, msg, wParam, lParam, g_oldProc4, &g_cap4);
+}
 
 static bool g_dlgClosed = false;
 
@@ -489,6 +498,7 @@ static LRESULT CALLBACK HotkeyDlgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
                 CppShot::saveHotkey("Screenshot",         g_cap1.mod, g_cap1.vk);
                 CppShot::saveHotkey("ScreenshotRegion",   g_cap2.mod, g_cap2.vk);
                 CppShot::saveHotkey("DesktopTransparent", g_cap3.mod, g_cap3.vk);
+                CppShot::saveHotkey("ScreenshotTaskbar",  g_cap4.mod, g_cap4.vk);
                 DestroyWindow(hWnd);
             } else if (id == 104) { // Cancel
                 DestroyWindow(hWnd);
@@ -563,10 +573,12 @@ void MainWindow::onChangeKeybinds() {
     std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot",         MOD_CONTROL,             0x42);
     std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion",   MOD_CONTROL | MOD_SHIFT, 0x42);
     std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT,   0x44);
+    std::pair<UINT, UINT> hotkey4 = CppShot::loadHotkey("ScreenshotTaskbar",  MOD_CONTROL | MOD_ALT,   0x54); // CTRL+ALT+T default
 
     g_cap1 = { hotkey1.first, hotkey1.second, NULL };
     g_cap2 = { hotkey2.first, hotkey2.second, NULL };
     g_cap3 = { hotkey3.first, hotkey3.second, NULL };
+    g_cap4 = { hotkey4.first, hotkey4.second, NULL };
 
     HINSTANCE instance = GetModuleHandle(NULL);
     HICON hIcon = (HICON) LoadImage(instance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED);
@@ -584,13 +596,14 @@ void MainWindow::onChangeKeybinds() {
         WS_EX_DLGMODALFRAME,
         "HotkeyDlg", "Change Keybinds",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
-        CW_USEDEFAULT, CW_USEDEFAULT, S(310), S(335),
+        CW_USEDEFAULT, CW_USEDEFAULT, S(310), S(400),
         this->getWindow(), NULL, GetModuleHandle(NULL), NULL
     );
 
-    CreateWindowA("STATIC", "_b1",        WS_CHILD | WS_VISIBLE, S(10), S(55),  S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
-    CreateWindowA("STATIC", "_b1 + _b2",  WS_CHILD | WS_VISIBLE, S(10), S(115), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
-    CreateWindowA("STATIC", "Desktop",    WS_CHILD | WS_VISIBLE, S(10), S(175), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "Active",               WS_CHILD | WS_VISIBLE, S(10), S(55),  S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "Active and Inactive",  WS_CHILD | WS_VISIBLE, S(10), S(115), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "Desktop",              WS_CHILD | WS_VISIBLE, S(10), S(175), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
+    CreateWindowA("STATIC", "Taskbar",              WS_CHILD | WS_VISIBLE, S(10), S(235), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     HWND hPreview1 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap1.mod, g_cap1.vk).c_str(),
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
@@ -603,6 +616,10 @@ void MainWindow::onChangeKeybinds() {
     HWND hPreview3 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap3.mod, g_cap3.vk).c_str(),
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
         S(10), S(195), S(280), S(25), hDlg, (HMENU)105, GetModuleHandle(NULL), NULL);
+    
+    HWND hPreview4 = CreateWindowA("EDIT", CppShot::HotkeyToString(g_cap4.mod, g_cap4.vk).c_str(),
+        WS_CHILD | WS_VISIBLE | WS_BORDER | ES_READONLY | ES_CENTER,
+        S(10), S(255), S(280), S(25), hDlg, (HMENU)105, GetModuleHandle(NULL), NULL);
 
     g_cap1.hPreview = hPreview1;
     g_cap2.hPreview = hPreview2;
@@ -612,14 +629,15 @@ void MainWindow::onChangeKeybinds() {
         S(10), S(15), S(280), S(40), hDlg, NULL, GetModuleHandle(NULL), NULL);
 
     CreateWindowA("STATIC", "*A restart of the application is required.", WS_CHILD | WS_VISIBLE | SS_CENTER,
-        S(10), S(230), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
+        S(10), S(295), S(280), S(20), hDlg, NULL, GetModuleHandle(NULL), NULL);
 
-    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | (OWNER_DRAW ? BS_OWNERDRAW : 0), S(60),  S(258), S(80), S(28), hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
-    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE | (OWNER_DRAW ? BS_OWNERDRAW : 0), S(155), S(258), S(80), S(28), hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "OK",     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | (OWNER_DRAW ? BS_OWNERDRAW : 0), S(60),  S(330), S(80), S(28), hDlg, (HMENU)103, GetModuleHandle(NULL), NULL);
+    CreateWindowA("BUTTON", "Cancel", WS_CHILD | WS_VISIBLE | (OWNER_DRAW ? BS_OWNERDRAW : 0), S(155), S(330), S(80), S(28), hDlg, (HMENU)104, GetModuleHandle(NULL), NULL);
 
     g_oldProc1 = (WNDPROC)SetWindowLongPtrA(hPreview1, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc1);
     g_oldProc2 = (WNDPROC)SetWindowLongPtrA(hPreview2, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc2);
     g_oldProc3 = (WNDPROC)SetWindowLongPtrA(hPreview3, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc3);
+    g_oldProc4 = (WNDPROC)SetWindowLongPtrA(hPreview4, GWLP_WNDPROC, (LONG_PTR)HotkeySubclassProc4);
 
     HFONT font = CppShot::createScaledFont(hDlg);
     CppShot::applyFontToChildren(hDlg, font);

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iostream>
 #include <string>
+#include <vector>
 #include <sys/stat.h>
 #include <cstdint>
 
@@ -17,8 +18,13 @@
 
 #define ERROR_TITLE "BetterCppShot Error"
 
+#ifndef GWL_HWNDPARENT
+#define GWL_HWNDPARENT (-8)
+#endif
+
 const char blackBackdropClassName[] = "BlackBackdropWindow";
 const char whiteBackdropClassName[] = "WhiteBackdropWindow";
+static HWND g_mainWindow = NULL;
 
 inline bool FileExists(const std::wstring &name)
 {
@@ -77,61 +83,80 @@ std::string GetSafeFilenameBase(std::string windowTitle)
     return result;
 }
 
-static std::wstring GetCurrentWallpaper()
+static std::string GetCurrentWallpaper()
 {
-    wchar_t buf[MAX_PATH] = {};
-    SystemParametersInfoW(SPI_GETDESKWALLPAPER, MAX_PATH, buf, 0);
+    char buf[MAX_PATH] = {};
+    SystemParametersInfoA(SPI_GETDESKWALLPAPER, MAX_PATH, buf, 0);
     return buf;
 }
 
-static std::wstring WriteSolidBmp(COLORREF color)
+static std::string WriteSolidBmp(COLORREF color, int width, int height)
 {
-    wchar_t tempDir[MAX_PATH];
-    GetTempPathW(MAX_PATH, tempDir);
+    char tempDir[MAX_PATH];
+    GetTempPathA(MAX_PATH, tempDir);
 
     // file
-    std::wstring path = std::wstring(tempDir) + (color == RGB(255, 255, 255) ? L"bcs_white.bmp" : L"bcs_black.bmp");
+    std::string path = std::string(tempDir) + (color == RGB(255, 255, 255) ? "bcs_white.bmp" : "bcs_black.bmp");
 
-    // 1x1 bmp, black and white
-    // bmp stores pixels as B,G,R.
-    BYTE pixel[4] = {GetBValue(color), GetGValue(color), GetRValue(color), 0};
+    int rowSize = (width * 3 + 3) & ~3;
+    DWORD imageSize = rowSize * height;
+    std::vector<BYTE> pixels(imageSize, 0);
+    for (int row = 0; row < height; ++row)
+    {
+        BYTE *pixel = &pixels[row * rowSize];
+        for (int column = 0; column < width; ++column)
+        {
+            pixel[column * 3] = GetBValue(color);
+            pixel[column * 3 + 1] = GetGValue(color);
+            pixel[column * 3 + 2] = GetRValue(color);
+        }
+    }
 
     BITMAPFILEHEADER fh = {};
     BITMAPINFOHEADER ih = {};
     fh.bfType = 0x4D42; // 'BM'
     fh.bfOffBits = sizeof(fh) + sizeof(ih);
-    fh.bfSize = fh.bfOffBits + sizeof(pixel);
+    fh.bfSize = fh.bfOffBits + imageSize;
     ih.biSize = sizeof(ih);
-    ih.biWidth = 1;
-    ih.biHeight = 1;
+    ih.biWidth = width;
+    ih.biHeight = height;
     ih.biPlanes = 1;
     ih.biBitCount = 24;
-    ih.biSizeImage = sizeof(pixel); // one padded row
+    ih.biSizeImage = imageSize;
 
-    HANDLE hFile = CreateFileW(path.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
+    HANDLE hFile = CreateFileA(path.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
     if (hFile == INVALID_HANDLE_VALUE)
-        return L"";
+        return "";
 
     DWORD written;
     WriteFile(hFile, &fh, sizeof(fh), &written, NULL);
     WriteFile(hFile, &ih, sizeof(ih), &written, NULL);
-    WriteFile(hFile, pixel, sizeof(pixel), &written, NULL);
+    WriteFile(hFile, pixels.data(), imageSize, &written, NULL);
     CloseHandle(hFile);
     return path;
 }
 
-static void SetWallpaper(const std::wstring &path)
+static void SetWallpaper(const std::string &path)
 {
     HKEY hKey;
-    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Control Panel\\Desktop", 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS)
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, "Control Panel\\Desktop", 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS)
     {
-        const wchar_t *style = L"2"; // stretchhhh
-        const wchar_t *tile = L"0";
-        RegSetValueExW(hKey, L"WallpaperStyle", 0, REG_SZ, (const BYTE *)style, (wcslen(style) + 1) * 2);
-        RegSetValueExW(hKey, L"TileWallpaper", 0, REG_SZ, (const BYTE *)tile, (wcslen(tile) + 1) * 2);
+        const char *style = "2"; // stretchhhh
+        const char *tile = "0";
+        RegSetValueExA(hKey, "WallpaperStyle", 0, REG_SZ, (const BYTE *)style, strlen(style) + 1);
+        RegSetValueExA(hKey, "TileWallpaper", 0, REG_SZ, (const BYTE *)tile, strlen(tile) + 1);
         RegCloseKey(hKey);
     }
-    SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, (PVOID)path.c_str(), SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+    SystemParametersInfoA(SPI_SETDESKWALLPAPER, 0, (PVOID)path.c_str(), SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+    HWND desktop = GetDesktopWindow();
+    InvalidateRect(desktop, NULL, TRUE);
+    UpdateWindow(desktop);
+    HWND progman = FindWindowA("Progman", NULL);
+    if (progman)
+    {
+        InvalidateRect(progman, NULL, TRUE);
+        UpdateWindow(progman);
+    }
     // wait for wallpaper
     Sleep(300);
 }
@@ -179,11 +204,79 @@ static RECT GetPrimaryMonitorRect()
     return r;
 }
 
+static void SetCaptureTaskbarButtonVisible(bool visible)
+{
+    HWND mainWindow = g_mainWindow;
+    if (!mainWindow)
+        return;
+
+    LONG exStyle = GetWindowLongA(mainWindow, GWL_EXSTYLE);
+    if (visible)
+    {
+        exStyle &= ~WS_EX_TOOLWINDOW;
+        exStyle |= WS_EX_APPWINDOW;
+        SetWindowLongPtrA(mainWindow, GWL_HWNDPARENT, (LONG_PTR)NULL);
+    }
+    else
+    {
+        exStyle &= ~WS_EX_APPWINDOW;
+        exStyle |= WS_EX_TOOLWINDOW;
+        SetWindowLongPtrA(mainWindow, GWL_HWNDPARENT, (LONG_PTR)GetDesktopWindow());
+    }
+
+    SetWindowLongA(mainWindow, GWL_EXSTYLE, exStyle);
+    SetWindowPos(mainWindow, NULL, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+}
+
+static void SetCaptureAppVisible(bool visible)
+{
+    HWND mainWindow = g_mainWindow;
+    if (!mainWindow)
+        return;
+
+    ShowWindow(mainWindow, visible ? SW_SHOWNOACTIVATE : SW_HIDE);
+    SetWindowPos(mainWindow, NULL, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE |
+                     (visible ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
+    UpdateWindow(mainWindow);
+}
+
+static bool ActivateWindow(HWND window)
+{
+    HWND currentForeground = GetForegroundWindow();
+    DWORD currentThread = GetCurrentThreadId();
+    DWORD foregroundThread = currentForeground ? GetWindowThreadProcessId(currentForeground, NULL) : 0;
+    bool attached = foregroundThread != 0 && foregroundThread != currentThread &&
+                    AttachThreadInput(currentThread, foregroundThread, TRUE);
+
+    BringWindowToTop(window);
+    SetActiveWindow(window);
+    SetForegroundWindow(window);
+    bool activated = false;
+    for (int attempt = 0; attempt < 10 && !activated; ++attempt)
+    {
+        Sleep(5);
+        activated = GetForegroundWindow() == window;
+        if (!activated)
+            SetForegroundWindow(window);
+    }
+
+    if (attached)
+        AttachThreadInput(currentThread, foregroundThread, FALSE);
+
+    return activated;
+}
+
 void CaptureDesktopTransparent()
 {
-    std::wstring originalWallpaper = GetCurrentWallpaper();
-    std::wstring whiteBmp = WriteSolidBmp(RGB(255, 255, 255));
-    std::wstring blackBmp = WriteSolidBmp(RGB(0, 0, 0));
+    std::string originalWallpaper = GetCurrentWallpaper();
+    RECT monitorRect = GetPrimaryMonitorRect();
+    Screenshot whiteShot, blackShot;
+    int monitorWidth = monitorRect.right - monitorRect.left;
+    int monitorHeight = monitorRect.bottom - monitorRect.top;
+    std::string whiteBmp = WriteSolidBmp(RGB(255, 255, 255), monitorWidth, monitorHeight);
+    std::string blackBmp = WriteSolidBmp(RGB(0, 0, 0), monitorWidth, monitorHeight);
 
     if (whiteBmp.empty() || blackBmp.empty())
     {
@@ -191,8 +284,8 @@ void CaptureDesktopTransparent()
         return;
     }
 
-    RECT monitorRect = GetPrimaryMonitorRect();
-    Screenshot whiteShot, blackShot;
+    SetCaptureTaskbarButtonVisible(false);
+    SetCaptureAppVisible(false);
 
     // min all
     ShellMinimizeAll(true);
@@ -211,13 +304,15 @@ void CaptureDesktopTransparent()
 
     // restore wallpaper
     if (!originalWallpaper.empty())
-        SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, (PVOID)originalWallpaper.c_str(), SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+        SetWallpaper(originalWallpaper);
     else
-        SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, (PVOID)L"", SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);
+        SetWallpaper("");
 
     // taskbar and window
     SetTaskbarVisible(true);
     ShellMinimizeAll(false);
+    SetCaptureAppVisible(true);
+    SetCaptureTaskbarButtonVisible(true);
 
     if (!whiteShot.isCaptured() || !blackShot.isCaptured())
     {
@@ -238,15 +333,86 @@ void CaptureDesktopTransparent()
     }
 }
 
+void CaptureTaskbar(BackdropWindow &whiteWindow, BackdropWindow &blackWindow)
+{
+    HWND taskbar = FindWindowA("Shell_TrayWnd", NULL);
+    if (!taskbar)
+    {
+        MessageBoxA(NULL, "The taskbar could not be found.", "Taskbar Capture Error", MB_OK | MB_ICONSTOP);
+        return;
+    }
+
+    RECT taskbarRect = {};
+    GetWindowRect(taskbar, &taskbarRect);
+    if (taskbarRect.right <= taskbarRect.left || taskbarRect.bottom <= taskbarRect.top)
+    {
+        MessageBoxA(NULL, "The taskbar has an invalid capture rectangle.", "Taskbar Capture Error", MB_OK | MB_ICONSTOP);
+        return;
+    }
+
+    SetCaptureTaskbarButtonVisible(false);
+    SetCaptureAppVisible(false);
+
+    whiteWindow.resize(taskbar);
+    blackWindow.resize(taskbar);
+
+    blackWindow.hide();
+    whiteWindow.show();
+    SetWindowPos(whiteWindow.getWindow(), HWND_BOTTOM, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    SetWindowPos(taskbar, HWND_TOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    RedrawWindow(taskbar, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+    Screenshot whiteShot;
+    whiteShot.captureRect(taskbarRect);
+
+    whiteWindow.hide();
+    blackWindow.show();
+    SetWindowPos(blackWindow.getWindow(), HWND_BOTTOM, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    SetWindowPos(taskbar, HWND_TOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    RedrawWindow(taskbar, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+    Screenshot blackShot;
+    blackShot.captureRect(taskbarRect);
+
+    blackWindow.hide();
+    SetWindowPos(taskbar, HWND_NOTOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    Sleep(100); // Waiting a bit so that it can actually screenshot correcctly
+    SetCaptureAppVisible(true);
+    SetCaptureTaskbarButtonVisible(true);
+
+    try
+    {
+        if (!whiteShot.isCaptured() || !blackShot.isCaptured())
+            throw std::runtime_error("The taskbar screenshot was not captured.");
+
+        auto base = GetSafeFilenameBase("Taskbar");
+        CompositeScreenshot result(whiteShot, blackShot, true /* noCrop */);
+        result.save(base + "_b1.png");
+    }
+    catch (std::runtime_error &e)
+    {
+        MessageBoxA(NULL, e.what(), "Taskbar Capture Error", MB_OK | MB_ICONSTOP);
+    }
+};
+
 void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow &whiteWindow, BackdropWindow &blackWindow, bool creMode, bool captureMask)
 {
-    HWND desktopWindow = GetDesktopWindow();
     HWND foregroundWindow = GetForegroundWindow();
     HWND taskbar = FindWindowA("Shell_TrayWnd", NULL);
     HWND startButton = FindWindowA("Button", "Start");
 
     std::pair<Screenshot, Screenshot> shots;
     std::pair<Screenshot, Screenshot> creShots;
+
+    SetCaptureTaskbarButtonVisible(false);
+
+    HWND captureApp = FindWindowA("MainCreWindow", NULL);
+    bool hideCaptureApp = captureApp != foregroundWindow;
+    if (hideCaptureApp)
+        SetCaptureAppVisible(false);
 
     if (foregroundWindow != taskbar && foregroundWindow != startButton)
     {
@@ -274,11 +440,16 @@ void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow &whiteWi
 
     if (creMode)
     {
-        SetForegroundWindow(desktopWindow);
-        Sleep(33);
-        creShots.first.capture(foregroundWindow);
+        SetWindowPos(blackWindow.getWindow(), HWND_TOP, -32000, -32000, 1, 1, SWP_SHOWWINDOW);
+        if (ActivateWindow(blackWindow.getWindow()))
+        {
+            RedrawWindow(foregroundWindow, NULL, NULL, RDW_INVALIDATE | RDW_FRAME | RDW_UPDATENOW);
+            Sleep(33);
+            creShots.first.capture(foregroundWindow);
+        }
 
         whiteWindow.hide();
+        blackWindow.resize(foregroundWindow);
         blackWindow.show();
 
         creShots.second.capture(foregroundWindow);
@@ -289,6 +460,9 @@ void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow &whiteWi
 
     blackWindow.hide();
     whiteWindow.hide();
+    if (hideCaptureApp)
+        SetCaptureAppVisible(true);
+    SetCaptureTaskbarButtonVisible(true);
 
     if (!shots.first.isCaptured() || !shots.second.isCaptured())
     {
@@ -409,20 +583,24 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
     try
     {
         MainWindow window;
+        g_mainWindow = window.getWindow();
         window.show(nCmdShow);
 
         // actually getting the keybinds
         std::pair<UINT, UINT> hotkey1 = CppShot::loadHotkey("Screenshot", MOD_CONTROL, 0x42);
         std::pair<UINT, UINT> hotkey2 = CppShot::loadHotkey("ScreenshotRegion", MOD_CONTROL | MOD_SHIFT, 0x42);
         std::pair<UINT, UINT> hotkey3 = CppShot::loadHotkey("DesktopTransparent", MOD_CONTROL | MOD_ALT, 0x44); // CTRL+ALT+D default
+        std::pair<UINT, UINT> hotkey4 = CppShot::loadHotkey("ScreenshotTaskbar", MOD_CONTROL | MOD_ALT, 0x54); // CTRL+ALT+T default
 
         UINT mod1 = hotkey1.first, vk1 = hotkey1.second;
         UINT mod2 = hotkey2.first, vk2 = hotkey2.second;
         UINT mod3 = hotkey3.first, vk3 = hotkey3.second;
+        UINT mod4 = hotkey4.first, vk4 = hotkey4.second;
 
         std::string hotkey_b1 = CppShot::HotkeyToString(mod1, vk1);
         std::string hotkey_b1_b2 = CppShot::HotkeyToString(mod2, vk2);
         std::string hotkey_desk = CppShot::HotkeyToString(mod3, vk3);
+        std::string hotkey_tb = CppShot::HotkeyToString(mod4, vk4);
 
         std::string text_keybind1 = "Unable to register keybind: ";
         text_keybind1 += hotkey_b1;
@@ -433,6 +611,9 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
         std::string text_keybind3 = "Unable to register keybind: ";
         text_keybind3 += hotkey_desk;
 
+        std::string text_keybind4 = "Unable to register keybind: ";
+        text_keybind4 += hotkey_tb;
+
         if (!RegisterHotKey(NULL, 1, mod1, vk1))
             MessageBoxA(NULL, text_keybind1.c_str(), ERROR_TITLE, 0x10);
 
@@ -441,6 +622,9 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
 
         if (!RegisterHotKey(NULL, 3, mod3, vk3))
             MessageBoxA(NULL, text_keybind3.c_str(), ERROR_TITLE, 0x10);
+
+        if (!RegisterHotKey(NULL, 4, mod4, vk4))
+            MessageBoxA(NULL, text_keybind4.c_str(), ERROR_TITLE, 0x10);
 
         BackdropWindow whiteWindow(RGB(255, 255, 255), whiteBackdropClassName);
         BackdropWindow blackWindow(RGB(0, 0, 0), blackBackdropClassName);
@@ -472,6 +656,9 @@ int WINAPI WinMain(HINSTANCE hThisInstance,
                 }
                 else if (messages.wParam == 3) {
                     CaptureDesktopTransparent();
+                }
+                else if (messages.wParam == 4) {
+                    CaptureTaskbar(whiteWindow, blackWindow);
                 }
             }
             TranslateMessage(&messages);

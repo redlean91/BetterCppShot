@@ -16,7 +16,9 @@ void Screenshot::capture(HWND window) {
 	delete m_image;
 
     m_window = window;
-    int m_delay = CppShot::getRegistryInt("Delay", 0);
+    int delay = CppShot::getRegistryInt("Delay", 0);
+    if (delay > 0)
+        Sleep((DWORD)delay);
 	RECT rct = createRect();
 
 	HDC hdc = GetDC(HWND_DESKTOP);
@@ -24,7 +26,6 @@ void Screenshot::capture(HWND window) {
     HBITMAP hbitmap = CreateCompatibleBitmap(hdc, rct.right - rct.left, rct.bottom - rct.top);
 
     SelectObject(memdc, hbitmap);
-    Sleep(m_delay); // Small delay so that notifs wont screw up transparency while taking.
     BitBlt(memdc, 0, 0, rct.right - rct.left, rct.bottom - rct.top, hdc, rct.left, rct.top, SRCCOPY );
 
     DeleteDC(memdc);
@@ -41,6 +42,10 @@ RECT Screenshot::createRect() {
 void Screenshot::captureRect(RECT rect) {
     delete m_image;
     m_captureRect = rect;
+
+	int delay = CppShot::getRegistryInt("Delay", 0);
+	if (delay > 0)
+		Sleep((DWORD)delay);
 
     int width  = rect.right  - rect.left;
     int height = rect.bottom - rect.top;
