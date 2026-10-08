@@ -13,6 +13,7 @@
 #include "Utils.h"
 #include "images/Screenshot.h"
 #include "images/CompositeScreenshot.h"
+#include "images/WgcCapture.h"
 #include "windows/MainWindow.h"
 #include "windows/BackdropWindow.h"
 
@@ -25,6 +26,9 @@
 const char blackBackdropClassName[] = "BlackBackdropWindow";
 const char whiteBackdropClassName[] = "WhiteBackdropWindow";
 static HWND g_mainWindow = NULL;
+
+void CaptureCompositeScreenshotLegacy(HINSTANCE hThisInstance, BackdropWindow &whiteWindow, BackdropWindow &blackWindow, bool creMode, bool captureMask);
+void CaptureTaskbarLegacy(BackdropWindow &whiteWindow, BackdropWindow &blackWindow);
 
 inline bool FileExists(const std::wstring &name)
 {
@@ -268,8 +272,296 @@ static bool ActivateWindow(HWND window)
     return activated;
 }
 
+// Builds the "_mask.png" image from a direct capture: opaque black where the
+// window is visible, fully transparent elsewhere.
+static Gdiplus::Bitmap *CreateMaskFromAlpha(Gdiplus::Bitmap *src)
+{
+    if (!src)
+        return nullptr;
+
+    UINT width = src->GetWidth(), height = src->GetHeight();
+    if (width == 0 || height == 0)
+        return nullptr;
+
+    // Same threshold logic as CompositeScreenshot's blackOpaque mode
+    int minAlpha = 0;
+    OSVERSIONINFO osvi = {};
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    if (GetVersionEx(&osvi) && osvi.dwMajorVersion >= 10)
+        minAlpha = 254;
+
+    Gdiplus::Bitmap *mask = new Gdiplus::Bitmap(width, height, PixelFormat32bppARGB);
+    if (mask->GetLastStatus() != Gdiplus::Ok)
+    {
+        delete mask;
+        return nullptr;
+    }
+
+    Gdiplus::Rect rc(0, 0, width, height);
+    Gdiplus::BitmapData srcData, maskData;
+
+    if (src->LockBits(&rc, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &srcData) != Gdiplus::Ok)
+    {
+        delete mask;
+        return nullptr;
+    }
+    if (mask->LockBits(&rc, Gdiplus::ImageLockModeWrite, PixelFormat32bppARGB, &maskData) != Gdiplus::Ok)
+    {
+        src->UnlockBits(&srcData);
+        delete mask;
+        return nullptr;
+    }
+
+    for (UINT y = 0; y < height; y++)
+    {
+        const BYTE *srcRow = (const BYTE *)srcData.Scan0 + y * srcData.Stride;
+        BYTE *maskRow = (BYTE *)maskData.Scan0 + y * maskData.Stride;
+        for (UINT x = 0; x < width; x++)
+        {
+            BYTE alpha = srcRow[x * 4 + 3];
+            bool visible = alpha > minAlpha;
+            maskRow[x * 4 + 0] = 0;
+            maskRow[x * 4 + 1] = 0;
+            maskRow[x * 4 + 2] = 0;
+            maskRow[x * 4 + 3] = visible ? 255 : 0;
+        }
+    }
+
+    src->UnlockBits(&srcData);
+    mask->UnlockBits(&maskData);
+    return mask;
+}
+
+static bool BitmapHasAnyTransparentPixel(Gdiplus::Bitmap *bmp)
+{
+    if (!bmp)
+        return false;
+
+    Gdiplus::Rect rc(0, 0, bmp->GetWidth(), bmp->GetHeight());
+    Gdiplus::BitmapData data;
+    if (bmp->LockBits(&rc, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &data) != Gdiplus::Ok)
+        return false;
+
+    bool found = false;
+    for (UINT y = 0; y < data.Height && !found; y++)
+    {
+        const BYTE *row = (const BYTE *)data.Scan0 + y * data.Stride;
+        for (UINT x = 0; x < data.Width; x++)
+        {
+            if (row[x * 4 + 3] != 255)
+            {
+                found = true;
+                break;
+            }
+        }
+    }
+
+    bmp->UnlockBits(&data);
+    return found;
+}
+
+// Counts pixels with any opacity, stopping as soon as `threshold` is reached.
+static bool BitmapHasAtLeastNVisiblePixels(Gdiplus::Bitmap *bmp, UINT threshold)
+{
+    if (!bmp)
+        return false;
+
+    Gdiplus::Rect rc(0, 0, bmp->GetWidth(), bmp->GetHeight());
+    Gdiplus::BitmapData data;
+    if (bmp->LockBits(&rc, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &data) != Gdiplus::Ok)
+        return false;
+
+    UINT visible = 0;
+    for (UINT y = 0; y < data.Height && visible < threshold; y++)
+    {
+        const BYTE *row = (const BYTE *)data.Scan0 + y * data.Stride;
+        for (UINT x = 0; x < data.Width; x++)
+        {
+            if (row[x * 4 + 3] != 0)
+            {
+                visible++;
+                if (visible >= threshold)
+                    break;
+            }
+        }
+    }
+
+    bmp->UnlockBits(&data);
+    return visible >= threshold;
+}
+
+static Gdiplus::Bitmap *CreateTransparentBitmap(int width, int height)
+{
+    if (width <= 0 || height <= 0)
+        return nullptr;
+
+    Gdiplus::Bitmap *bmp = new Gdiplus::Bitmap(width, height, PixelFormat32bppARGB);
+    if (bmp->GetLastStatus() != Gdiplus::Ok)
+    {
+        delete bmp;
+        return nullptr;
+    }
+
+    Gdiplus::Rect rc(0, 0, width, height);
+    Gdiplus::BitmapData data;
+    if (bmp->LockBits(&rc, Gdiplus::ImageLockModeWrite, PixelFormat32bppARGB, &data) != Gdiplus::Ok)
+    {
+        delete bmp;
+        return nullptr;
+    }
+
+    for (int y = 0; y < height; y++)
+        memset((BYTE *)data.Scan0 + y * data.Stride, 0, (size_t)width * 4);
+
+    bmp->UnlockBits(&data);
+    return bmp;
+}
+
+// The desktop icons live in the "FolderView" SysListView32 hosted by Progman
+// (or a WorkerW window on newer Windows versions).
+static HWND FindDesktopIconsWindow()
+{
+    HWND defView = NULL;
+    HWND progman = FindWindowA("Progman", NULL);
+    if (progman)
+        defView = FindWindowExA(progman, NULL, "SHELLDLL_DefView", NULL);
+
+    if (!defView)
+    {
+        HWND workerW = NULL;
+        while ((workerW = FindWindowExA(NULL, workerW, "WorkerW", NULL)) != NULL)
+        {
+            defView = FindWindowExA(workerW, NULL, "SHELLDLL_DefView", NULL);
+            if (defView)
+                break;
+        }
+    }
+
+    if (!defView)
+        return NULL;
+
+    HWND icons = FindWindowExA(defView, NULL, "SysListView32", "FolderView");
+    return icons ? icons : defView;
+}
+
+static std::string GetWindowTitleUtf8(HWND window)
+{
+    wchar_t h[2048];
+    GetWindowTextW(window, h, 2048);
+
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, h, -1, NULL, 0, NULL, NULL);
+    std::string windowTextStr(size_needed - 1, 0); // -1 to remove null terminator
+    WideCharToMultiByte(CP_UTF8, 0, h, -1, &windowTextStr[0], size_needed, NULL, NULL);
+    return windowTextStr;
+}
+
+// Captures the foreground window directly via PrintWindow (no backdrops).
+// Returns false when direct capture is unavailable/failed so the caller can
+// fall back to the classic black/white backdrop method.
+static bool CaptureWindowDirect(BackdropWindow &blackWindow, bool creMode, bool captureMask)
+{
+    HWND foregroundWindow = GetForegroundWindow();
+    if (!foregroundWindow)
+        return false;
+
+    if (IsIconic(foregroundWindow))
+    {
+        ShowWindow(foregroundWindow, SW_RESTORE);
+        Sleep(200);
+    }
+
+    Screenshot shot;
+    shot.captureWgc(foregroundWindow);
+    if (!shot.isCaptured())
+        shot.captureDirect(foregroundWindow);
+    if (!shot.isCaptured())
+        return false;
+
+    auto base = GetSafeFilenameBase(GetWindowTitleUtf8(foregroundWindow));
+    shot.save(base + "_b1.png");
+
+    if (captureMask)
+    {
+        Gdiplus::Bitmap *mask = CreateMaskFromAlpha(shot.getBitmap());
+        if (mask)
+        {
+            Screenshot::saveBitmap(mask, base + "_mask.png");
+            delete mask;
+        }
+    }
+
+    if (creMode)
+    {
+        // Focus a 1x1 off-screen backdrop so the target repaints as inactive
+        SetWindowPos(blackWindow.getWindow(), HWND_TOP, -32000, -32000, 1, 1, SWP_SHOWWINDOW);
+        if (ActivateWindow(blackWindow.getWindow()))
+        {
+            RedrawWindow(foregroundWindow, NULL, NULL, RDW_INVALIDATE | RDW_FRAME | RDW_UPDATENOW);
+            Sleep(100);
+
+            Screenshot inactiveShot;
+            inactiveShot.captureWgc(foregroundWindow);
+            if (!inactiveShot.isCaptured())
+                inactiveShot.captureDirect(foregroundWindow);
+            if (inactiveShot.isCaptured())
+                inactiveShot.save(base + "_b2.png");
+        }
+        blackWindow.hide();
+        SetForegroundWindow(foregroundWindow);
+    }
+
+    return true;
+}
+
 void CaptureDesktopTransparent()
 {
+    // Direct handling of the desktop icons window — avoids swapping the
+    // wallpaper (and the visible flash that comes with it) whenever possible.
+    if (CppShot::getRegistryInt("DirectCapture", 1) != 0 && Screenshot::isDirectCaptureSupported())
+    {
+        HWND icons = FindDesktopIconsWindow();
+        if (icons)
+        {
+            if (!IsWindowVisible(icons))
+            {
+                // Desktop icons are hidden/disabled - the correct result is a
+                // fully transparent image, so there's nothing to photograph.
+                RECT iconsRect = {};
+                GetWindowRect(icons, &iconsRect);
+                if (iconsRect.right - iconsRect.left < 16 || iconsRect.bottom - iconsRect.top < 16)
+                    iconsRect = GetPrimaryMonitorRect();
+
+                Gdiplus::Bitmap *empty = CreateTransparentBitmap(
+                    iconsRect.right - iconsRect.left, iconsRect.bottom - iconsRect.top);
+                if (empty)
+                {
+                    auto base = GetSafeFilenameBase("DesktopIcons");
+                    Screenshot::saveBitmap(empty, base + "_b1.png");
+                    delete empty;
+                    return;
+                }
+            }
+            else
+            {
+                // PrintWindow on the icons listview is hit-or-miss across
+                // shell versions - only accept renders that both contain
+                // transparency (icons float over the wallpaper) and show a
+                // plausible amount of content; otherwise fall through to the
+                // classic wallpaper method.
+                Screenshot shot;
+                shot.captureDirect(icons);
+                if (shot.isCaptured() &&
+                    BitmapHasAnyTransparentPixel(shot.getBitmap()) &&
+                    BitmapHasAtLeastNVisiblePixels(shot.getBitmap(), 500))
+                {
+                    auto base = GetSafeFilenameBase("DesktopIcons");
+                    shot.save(base + "_b1.png");
+                    return;
+                }
+            }
+        }
+    }
+
     std::string originalWallpaper = GetCurrentWallpaper();
     RECT monitorRect = GetPrimaryMonitorRect();
     Screenshot whiteShot, blackShot;
@@ -336,6 +628,31 @@ void CaptureDesktopTransparent()
 void CaptureTaskbar(BackdropWindow &whiteWindow, BackdropWindow &blackWindow)
 {
     HWND taskbar = FindWindowA("Shell_TrayWnd", NULL);
+    if (taskbar && CppShot::getRegistryInt("DirectCapture", 1) != 0 && Screenshot::isDirectCaptureSupported())
+    {
+        RECT directRect = {};
+        GetWindowRect(taskbar, &directRect);
+        if (directRect.right > directRect.left && directRect.bottom > directRect.top)
+        {
+            Screenshot shot;
+            shot.captureWgc(taskbar);
+            if (!shot.isCaptured())
+                shot.captureDirect(taskbar);
+            if (shot.isCaptured())
+            {
+                auto base = GetSafeFilenameBase("Taskbar");
+                shot.save(base + "_b1.png");
+                return;
+            }
+        }
+    }
+
+    CaptureTaskbarLegacy(whiteWindow, blackWindow);
+}
+
+void CaptureTaskbarLegacy(BackdropWindow &whiteWindow, BackdropWindow &blackWindow)
+{
+    HWND taskbar = FindWindowA("Shell_TrayWnd", NULL);
     if (!taskbar)
     {
         MessageBoxA(NULL, "The taskbar could not be found.", "Taskbar Capture Error", MB_OK | MB_ICONSTOP);
@@ -399,6 +716,20 @@ void CaptureTaskbar(BackdropWindow &whiteWindow, BackdropWindow &blackWindow)
 };
 
 void CaptureCompositeScreenshot(HINSTANCE hThisInstance, BackdropWindow &whiteWindow, BackdropWindow &blackWindow, bool creMode, bool captureMask)
+{
+    // Direct capture: photograph the window itself via PrintWindow instead of
+    // compositing black/white backdrop shots. Falls back to the classic
+    // method on failure or when disabled in the settings.
+    if (CppShot::getRegistryInt("DirectCapture", 1) != 0 && Screenshot::isDirectCaptureSupported())
+    {
+        if (CaptureWindowDirect(blackWindow, creMode, captureMask))
+            return;
+    }
+
+    CaptureCompositeScreenshotLegacy(hThisInstance, whiteWindow, blackWindow, creMode, captureMask);
+}
+
+void CaptureCompositeScreenshotLegacy(HINSTANCE hThisInstance, BackdropWindow &whiteWindow, BackdropWindow &blackWindow, bool creMode, bool captureMask)
 {
     HWND foregroundWindow = GetForegroundWindow();
     HWND taskbar = FindWindowA("Shell_TrayWnd", NULL);

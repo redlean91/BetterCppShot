@@ -10,6 +10,11 @@ A transparent screnshot utility written in C++. Tested for compatibility on Wind
 - Add delay to make sure transparency doesnt mess up when taking the screenshot
 - Desktop Icons transparent screenshot taking (thanks a lot to [mrrpmeowfurry](https://github.com/mrrpmeowfurry) for helping out in bettercppshot!)
 - An about menu
+- **Direct window capture** — no more full-screen black/white backdrops on modern Windows:
+  - Windows 10 1803+: the window itself is captured through Windows.Graphics.Capture (real per-pixel alpha, rounded corners, works on DirectComposition apps like Windows Terminal, the taskbar and the Action Center), and the window's original DWM drop shadow is recovered with a brief hide-and-show of the window (~150 ms, no backdrops, nothing synthesized).
+  - Windows 2000+: falls back to a direct PrintWindow capture.
+  - Anything older (98/ME/XP): falls back to the classic black/white backdrop method.
+  - Can be toggled in Settings ("Direct Capture"); shadow recovery can be disabled by setting `CaptureShadow` to `0` under `HKCU\SOFTWARE\CppShot`.
 
 ## Building notes
 The build environment uses CMake.

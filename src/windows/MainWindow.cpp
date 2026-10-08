@@ -301,6 +301,9 @@ static LRESULT CALLBACK SettingsWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPAR
                 } else if (id == 207) {
                     bool checked = (IsDlgButtonChecked(hWnd, 207) == BST_CHECKED);
                     CppShot::changeRegistryInt("DarkMode", checked ? 1 : 0);
+                } else if (id == 208) {
+                    bool checked = (IsDlgButtonChecked(hWnd, 208) == BST_CHECKED);
+                    CppShot::changeRegistryInt("DirectCapture", checked ? 1 : 0);
                 }
 
                 return 0;
@@ -335,7 +338,7 @@ static LRESULT CALLBACK SettingsWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPAR
                 HWND hCtl = (HWND)lParam;
                 int id = GetDlgCtrlID(hCtl);
 
-                if (id == 206 || id == 207) {
+                if (id == 206 || id == 207 || id == 208) {
                     SetBkMode(hdc, OPAQUE);
                     SetTextColor(hdc, OWNER_DRAW ? BUTTON_TEXT_COLOR : RGB(0, 0, 0));
                     SetBkColor(hdc, GetSysColor(COLOR_BTNFACE));
@@ -392,7 +395,7 @@ void MainWindow::onOpenSettings() {
         WS_EX_DLGMODALFRAME, className, "Settings",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        S(230), S(250),
+        S(230), S(280),
         this->getWindow(), NULL, GetModuleHandle(NULL), this
     );
 
@@ -413,14 +416,20 @@ void MainWindow::onOpenSettings() {
         S(10), S(150), S(200), S(20), hDlg, (HMENU)207, GetModuleHandle(NULL), NULL);
     if (OWNER_DRAW) {DisableControlTheming(hDarkModeCheck);};
 
+    HWND hDirectCheck = CreateWindowA("BUTTON", "Direct Capture (no backdrops)", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+        S(10), S(175), S(200), S(20), hDlg, (HMENU)208, GetModuleHandle(NULL), NULL);
+    if (OWNER_DRAW) {DisableControlTheming(hDirectCheck);};
+
     CreateWindowA("BUTTON", "Close", WS_CHILD | WS_VISIBLE | (OWNER_DRAW ? BS_OWNERDRAW : 0),
-        S(75), S(180), S(70), S(30), hDlg, (HMENU)202, GetModuleHandle(NULL), NULL);
+        S(75), S(210), S(70), S(30), hDlg, (HMENU)202, GetModuleHandle(NULL), NULL);
 
     HFONT font = CppShot::createScaledFont(hDlg);
     CppShot::applyFontToChildren(hDlg, font);
     CheckDlgButton(hDlg, 206, CppShot::getRegistryInt("CaptureMask", 0) ? BST_CHECKED : BST_UNCHECKED);
-    
+
     CheckDlgButton(hDlg, 207, CppShot::getRegistryInt("DarkMode", 0) ? BST_CHECKED : BST_UNCHECKED);
+
+    CheckDlgButton(hDlg, 208, CppShot::getRegistryInt("DirectCapture", 1) ? BST_CHECKED : BST_UNCHECKED);
     // Center over parent
     RECT rcParent, rcDlg;
     GetWindowRect(this->getWindow(), &rcParent);
